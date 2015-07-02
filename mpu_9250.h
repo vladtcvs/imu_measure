@@ -1,0 +1,18 @@
+#ifndef __MPU_9250_H__
+#define __MPU_9250_H__
+
+#include <stdint.h>
+
+typedef struct {
+	double ax, ay, az;
+	double wx, wy, wz;
+	double mx, my, mz;
+	double temp;
+} orient_data_t;
+
+int setup_imu(int fd, int gfs, int afs);
+void close_imu(int fd);
+int open_imu(const char *devname);
+int read_imu(int fd, orient_data_t *data);
+
+#endif

@@ -26,13 +26,18 @@ long time_stop(void)
 	return dtv.tv_sec*1000 + dtv.tv_usec/1000;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
 	orient_data_t data;
 	double t;
 	int fd = open_imu("/dev/i2c-2");
 	if (fd == 0)
 		return 0;
+	FILE *f;
+	if (argc < 2)
+		f = stdout;
+	else
+		f = fopen(argv[1], "wt");
 	enable_compass(fd, 1);
 	setup_imu(fd, 0, 1);
 	time_start();
@@ -40,11 +45,13 @@ int main(void)
 		t = time_stop()/1000.0;
 
 		if (read_imu(fd, &data) >= 0) {
-			printf("%lf %lf %lf %lf\n", 
+			fprintf(f, "%lf %lf %lf %lf\n", 
 			       t, data.wx, data.wy, data.wz);
 		}
 		//usleep(10000);
 	}
+	if (f != stdout)
+		fclose(f);
 	close_imu(fd);
 	return 0;
 }

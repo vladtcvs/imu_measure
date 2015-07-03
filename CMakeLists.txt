@@ -7,7 +7,17 @@ set(CMAKE_C_COMPILER ${CROSS_PREFIX}gcc)
 set(CMAKE_CXX_COMPILER ${CROSS_PREFIX}g++)
 
 include_directories(${PROJECT_SOURCE_DIR})
-add_executable(imu_measure main.c mpu_9250.c)
+
+add_library(mpu9250 STATIC mpu_9250.c)
+
+add_executable(imu_measure main.c)
 add_executable(set_bp set_bp.c)
 
+add_dependencies(imu_measure mpu9250)
+add_dependencies(set_bp mpu9250)
+
+target_link_libraries(imu_measure mpu9250)
+target_link_libraries(set_bp mpu9250)
+
 install(TARGETS imu_measure set_bp RUNTIME DESTINATION bin)
+install(TARGETS mpu9250 ARCHIVE DESTINATION lib)

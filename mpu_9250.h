@@ -10,6 +10,7 @@ typedef struct {
 	double temp;
 } orient_data_t;
 
+int enable_compass(int fd, int enable);
 int setup_imu(int fd, int gfs, int afs);
 void close_imu(int fd);
 int open_imu(const char *devname);

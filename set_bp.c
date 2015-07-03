@@ -2,6 +2,7 @@
 #include <linux/i2c-dev.h>
 #include <fcntl.h>
 #include <stdint.h>
+#include <mpu_9250.h>
 
 int main(int argc, char **argv)
 {
@@ -13,42 +14,11 @@ int main(int argc, char **argv)
 	if (argc != 2)	
 		return 0;
 	sscanf(argv[1], "%i", &bp);
-	int fd = open("/dev/i2c-2", O_RDWR);
-	if (fd < 0) {
-		printf("can not open\n");
+	int fd=open_imu("/dev/i2c-2");
+	if (fd == 0)
 		return 0;
-	}
-	
-	if (ioctl(fd, I2C_SLAVE, addr) < 0) {
-		close(fd);
-		printf("can not ioctl\n");
-		return 0;
-	}
-
-	uint8_t r = 55, d;
-	write(fd, &r, 1);
-	read(fd, &d, 1);
-	if (bp) {
-		d |= 0x02;
-	} else {
-		d &= 0xFD;
-	}
-	uint8_t buf[2] = {r, d};
-	write(fd, buf, 2);
-
-	if (bp) {
-		addr = 0x0c;	
-		if (ioctl(fd, I2C_SLAVE, addr) < 0) {
-			close(fd);
-			printf("can not ioctl\n");
-			return 0;
-		}
-		buf[0] = 0x0A;
-		buf[1] = 0x12;
-		write(fd, buf, 2);
-	}
-	close(fd);
-
+	enable_compass(fd, bp);
+	close_imu(fd);
 	return 0;
 }
 

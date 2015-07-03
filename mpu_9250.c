@@ -9,20 +9,47 @@ static double gsens = 131.0, asens = 2.048;
 
 int open_imu(const char *devname)
 {
-	int fd = open("/dev/i2c-2", O_RDWR);
+	int fd = open(devname, O_RDWR);
 
 	if (fd < 0) {
 		printf("can not open\n");
 		return 0;
 	}
-	if (ioctl(fd, I2C_SLAVE, addr_ga) < 0)
-		return 0;
 	return fd;
 }
 
 void close_imu(int fd)
 {
 	close(fd);
+}
+
+int enable_compass(int fd, int enable)
+{
+	if (ioctl(fd, I2C_SLAVE, addr_ga) < 0) {
+		close(fd);
+		printf("can not ioctl\n");
+		return -1;
+	}
+	uint8_t r = 55, d;
+	write(fd, &r, 1);
+	read(fd, &d, 1);
+	if (enable) {
+		d |= 0x02;
+	} else {
+		d &= 0xFD;
+	}
+	uint8_t buf[2] = {r, d};
+	write(fd, buf, 2);
+	if (enable) {
+		if (ioctl(fd, I2C_SLAVE, addr_m) < 0) {
+			printf("can not ioctl\n");
+			return -1;
+		}
+		buf[0] = 0x0A;
+		buf[1] = 0x12;
+		write(fd, buf, 2);
+	}
+	return 0;
 }
 
 typedef union {

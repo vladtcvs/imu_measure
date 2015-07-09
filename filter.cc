@@ -1,6 +1,9 @@
 #include <filter.h>
 
-const double eps[3][3][3] = { { {0, 0, 0}, {0, 0, 1}, {0, -1, 0} }, { {0, 0, -1}, {0, 0, 0}, {1, 0, 0} }, { {0, 1, 0}, {-1, 0, 0}, {0, 0, 0} } };
+const double eps[3][3][3] = {	{{0, 0,  0}, { 0, 0, 1}, {0, -1, 0}},
+				{{0, 0, -1}, { 0, 0, 0}, {1,  0, 0}},
+				{{0, 1,  0}, {-1, 0, 0}, {0,  0, 0}}
+			};
 
 #define SQR(x) ((x)*(x))
 
@@ -19,7 +22,8 @@ gyro_unit::gyro_unit(Vector3d nw, Matrix3d nP, Vector3d nI) :
 {
 }
 
-void gyro_unit::kalman_step(Vector3d z, Matrix3d Q, Matrix3d R, Vector3d M, double dt)
+void gyro_unit::kalman_step(Vector3d z, Matrix3d Q,
+			    Matrix3d R, Vector3d M, double dt)
 {
 	Matrix3d Lambda;
 	int q, j, m, n, i, k;
@@ -31,8 +35,10 @@ void gyro_unit::kalman_step(Vector3d z, Matrix3d Q, Matrix3d R, Vector3d M, doub
 		double l = 0;
 		for (m = 0; m < 3; m++)
 		for (n = 0; n < 3; n++) {
-			l -= 2 * w(n) * P(j,m) * eps[q][m][n] * (I(n) - I(m))/(2*I(q)) * dt;
-			l -= 2 * w(n) * P(q,m) * eps[j][m][n] * (I(n) - I(m))/(2*I(j)) * dt;
+			l -= 2 * w(n) * P(j,m) * eps[q][m][n] *
+						(I(n) - I(m))/(2*I(q)) * dt;
+			l -= 2 * w(n) * P(q,m) * eps[j][m][n] *
+						(I(n) - I(m))/(2*I(j)) * dt;
 		}
 		Lambda(q,j) = l;
 	}

@@ -22,4 +22,4 @@ target_link_libraries(imu_measure mpu9250 filter)
 target_link_libraries(set_bp mpu9250)
 
 install(TARGETS imu_measure set_bp RUNTIME DESTINATION bin)
-install(TARGETS mpu9250 ARCHIVE DESTINATION lib)
+install(TARGETS mpu9250 filter ARCHIVE DESTINATION lib)

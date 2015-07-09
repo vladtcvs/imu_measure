@@ -21,4 +21,3 @@ int main(int argc, char **argv)
 	close_imu(fd);
 	return 0;
 }
-

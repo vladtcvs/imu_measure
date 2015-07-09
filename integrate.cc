@@ -11,6 +11,17 @@ imu_unit::imu_unit(std::string devname, Vector3d nI, Vector3d nw, Matrix3d nP,
 		throw 1;
 	enable_compass(fd, 1);
 	setup_imu(fd, 0, 1);
+	offset.ax = 0;
+	offset.ay = 0;
+	offset.az = 0;
+
+	offset.mx = 0;
+	offset.my = 0;
+	offset.mz = 0;
+
+	offset.wx = 0;
+	offset.wy = 0;
+	offset.wz = 0;
 }
 
 imu_unit::~imu_unit()
@@ -31,6 +42,17 @@ imu_unit::imu_unit()
 	fd = open_imu("/dev/i2c-2");
 	if (fd == 0)
 		throw 1;
+	offset.ax = 0;
+	offset.ay = 0;
+	offset.az = 0;
+
+	offset.mx = 0;
+	offset.my = 0;
+	offset.mz = 0;
+
+	offset.wx = 0;
+	offset.wy = 0;
+	offset.wz = 0;
 }
 
 void imu_unit::to_local(orient_data_t* data)
@@ -133,5 +155,5 @@ bool imu_unit::measure()
 
 void imu_unit::get_position()
 {
-
+	measure();
 }

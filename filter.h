@@ -19,6 +19,8 @@ public:
 			 Matrix3d R, Vector3d M, double dt);
 };
 
+void SetIdentityError(Matrix3d &M, double de);
+
 extern const double eps[3][3][3];
 
 #endif

@@ -8,7 +8,7 @@
 #include <signal.h>
 #include <stdlib.h>
 
-#include <filter.h>
+#include <integrate.h>
 
 static struct timeval tv1,tv2,dtv;
 static struct timezone tz;
@@ -91,33 +91,6 @@ void measure_stay(int fd, orient_data_t *data)
 	}
 }
 
-void to_local(orient_data_t *data)
-{
-	double tx = (data->wx + data->wy)/1.414;
-	double ty = (data->wx - data->wy)/1.414;
-	double tz = data->wz;
-
-	data->wx = tx;
-	data->wy = ty;
-	data->wz = tz;
-
-	tx = (data->ax + data->ay)/1.414;
-	ty = (data->ax - data->ay)/1.414;
-	tz = data->az;
-
-	data->ax = tx;
-	data->ay = ty;
-	data->az = tz;
-
-	tx = (data->mx + data->my)/1.414;
-	ty = (data->mx - data->my)/1.414;
-	tz = data->mz;
-
-	data->mx = tx;
-	data->my = ty;
-	data->mz = tz;
-}
-
 int main(int argc, char **argv)
 {
 	int i, j;
@@ -128,6 +101,7 @@ int main(int argc, char **argv)
 	Vector3d w;
 	Matrix3d P;
 	Vector3d M;
+	Vector3d v;
 
 	if (argc >= 4) {
 		sscanf(argv[2], "%lf", &dw);
@@ -135,49 +109,30 @@ int main(int argc, char **argv)
 	}
 	M.setZero();
 	I.setOnes();
-	for (i = 0; i < 3; i++)
-	for (j = 0; j < 3; j++) {
-		Q(i,j) = (i==j)*dz*dz;
-		P(i,j) = 0;
-	}
+	P.setZero();
+	SetIdentityError(Q, dz);
 	w.setZero();
-	gyro_unit gyro(w, P, I);
+	v.setZero();
+	imu_unit imu("/dev/i2c-2", I, w, P, R, v);
 
-	orient_data_t data, stay;
 	double t, tp;
-	fd = open_imu("/dev/i2c-2");
-	if (fd == 0)
-		return 0;
-	
 	if (argc < 2)
 		f = stdout;
 	else
 		f = fopen(argv[1], "wt");
 	signal(SIGINT, signal_hdl);
+	imu.measure_offset(20);
 
-	enable_compass(fd, 1);
-	setup_imu(fd, 0, 1);
 	time_start();
 	tp = time_stop()/1000;
-	measure_stay(fd, &stay);
-	to_local(&stay);
-	fprintf(stderr, "stay measured\n");
-	fprintf(stderr, "%lf %lf %lf\n", stay.wx, stay.wy, stay.wz);
 	while (1) {
 		t = time_stop()/1000.0;
 		double dt = t - tp;
-		for (i = 0; i < 3; i++)
-		for (j = 0; j < 3; j++) {
-			R(i, j) = (i==j)*dw*dw*dt*dt;
-		}
+		SetIdentityError(R, dw * dt);
 
-		if (read_imu(fd, &data) >= 0) {
-			to_local(&data);
-			Vector3d z(data.wx - stay.wx, data.wy - stay.wy,
-					data.wz - stay.wz);
-			gyro.kalman_step(z, Q, R, M, dt);
-			fprintf(f, "%lf %lf %lf %lf %lf %lf %lf\n", 
-			       t, z(0), z(1), z(2), gyro.w(0), gyro.w(1), gyro.w(2));
+		if (imu.measure()) {
+			fprintf(f, "%lf %lf %lf %lf\n", 
+			       t, imu.gyro_data().w(0), imu.gyro_data().w(1), imu.gyro_data().w(2));
 		}
 		tp = t;
 		//usleep(10000);

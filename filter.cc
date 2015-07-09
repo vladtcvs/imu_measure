@@ -75,3 +75,11 @@ void gyro_unit::kalman_step(Vector3d z, Matrix3d Q,
 	w = ws;
 	P = Ps;
 }
+
+void SetIdentityError(Matrix3d& M, double de)
+{
+	int i, j;
+	for (i = 0; i < 3; i++)
+	for (j = 0; j < 3; j++)
+		M(i,j) = (i == j) * de * de;
+}

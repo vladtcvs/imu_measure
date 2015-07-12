@@ -94,26 +94,34 @@ void measure_stay(int fd, orient_data_t *data)
 int main(int argc, char **argv)
 {
 	int i, j;
-	double dz = 0.05;
+	double dzw = 0.05;
 	double dw = 0.01;
+	double dzm = 0.05;
+	double dm = 0.01;
+	double dza = 0.05;
+	double da = 0.01;
 	Vector3d I;
-	Matrix3d Q, R;
 	Vector3d w;
-	Matrix3d P;
-	Vector3d M;
+	Matrix3d R;
+	Vector3d M, F;
 	Vector3d v;
 
-	if (argc >= 4) {
+	if (argc >= 8) {
 		sscanf(argv[2], "%lf", &dw);
-		sscanf(argv[3], "%lf", &dz);
+		sscanf(argv[3], "%lf", &da);
+		sscanf(argv[4], "%lf", &dm);
+
+		sscanf(argv[5], "%lf", &dzw);
+		sscanf(argv[6], "%lf", &dza);
+		sscanf(argv[7], "%lf", &dzm);
 	}
 	M.setZero();
+	F.setZero();
 	I.setOnes();
-	P.setZero();
-	SetIdentityError(Q, dz);
 	w.setZero();
 	v.setZero();
-	imu_unit imu("/dev/i2c-2", I, w, P, R, v);
+	SetIdentityError(R, 1);
+	imu_unit imu("/dev/i2c-2", 1, I, w, R, v);
 
 	double t, tp;
 	if (argc < 2)
@@ -122,17 +130,27 @@ int main(int argc, char **argv)
 		f = fopen(argv[1], "wt");
 	signal(SIGINT, signal_hdl);
 	imu.measure_offset(20);
-
+	fprintf(stderr, "offset measured\n");
 	time_start();
 	tp = time_stop()/1000;
 	while (1) {
 		t = time_stop()/1000.0;
 		double dt = t - tp;
-		SetIdentityError(R, dw * dt);
 
-		if (imu.measure()) {
-			fprintf(f, "%lf %lf %lf %lf\n", 
-			       t, imu.gyro_data().w(0), imu.gyro_data().w(1), imu.gyro_data().w(2));
+		if (imu.get_position(M, F, dt, dzw, dza, dzm, dw * dt, da * dt, dm * dt)) {
+#ifdef DEBUG_GYRO
+			fprintf(f, "%lf %lf %lf %lf %lf %lf %lf\n", 
+			       t, imu.measured_data().wx,
+				imu.measured_data().wy, imu.measured_data().wz,
+				imu.gyro_data().w(0), imu.gyro_data().w(1),
+				imu.gyro_data().w(2));
+#else
+			const Vector3d rpy = imu.orientation();
+			const Vector3d a = imu.acceleration();
+			fprintf(f, "%lf %lf %lf %lf %lf %lf %lf\n", t,
+				rpy(0), rpy(1), rpy(2),
+				a(0), a(1), a(2));
+#endif
 		}
 		tp = t;
 		//usleep(10000);
@@ -141,4 +159,3 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-

@@ -1,14 +1,56 @@
 #include <integrate.h>
 #include <mpu_9250.h>
 
-imu_unit::imu_unit(std::string devname, Vector3d nI, Vector3d nw, Matrix3d nP,
-		   Matrix3d nR, Vector3d nv)
-	: gyro(nw, nP, nI),
-	  R(nR), v(nv)
+orientation_unit::orientation_unit(const Matrix3d& nR)
+	: R(9),
+	PR(9,9)
 {
+	PR.setZero();
+	int i, j;
+	for (i = 0; i < 3; i++)
+	for (j = 0; j < 3; j++)
+		R(i*3 + j) = nR(i,j);
+}
+
+orientation_unit::orientation_unit()
+{
+	PR.setZero();
+	int i, j;
+	for (i = 0; i < 3; i++)
+	for (j = 0; j < 3; j++)
+		R(i*3 + j) = (i == j);
+}
+
+void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
+				   const Vector3d& bottom, const Vector3d& north,
+				   const Matrix3d& Pb, const Matrix3d& Pn,
+				   double dt)
+{
+	
+}
+
+const Matrix3d* orientation_unit::get_orientation()
+{
+	Matrix3d *ori = new Matrix3d;
+	int i, j;
+	for (i = 0; i < 3; i++)
+	for (j = 0; j < 3; j++)
+		(*ori)(i,j) = R(i*3 + j);
+	return ori;
+}
+
+
+imu_unit::imu_unit(std::string devname, double mass, Vector3d nI, Vector3d nw,
+		   Matrix3d nR, Vector3d nv)
+{
+	Matrix3d nP;
+	nP.setZero();
 	fd = open_imu(devname.c_str());
 	if (fd == 0)
 		throw 1;
+	gyro = new gyro_unit(nw, nP, nI);
+	if (gyro == NULL)
+		throw 2;
 	enable_compass(fd, 1);
 	setup_imu(fd, 0, 1);
 	offset.ax = 0;
@@ -22,21 +64,21 @@ imu_unit::imu_unit(std::string devname, Vector3d nI, Vector3d nw, Matrix3d nP,
 	offset.wx = 0;
 	offset.wy = 0;
 	offset.wz = 0;
+
+	m = mass;
 }
 
 imu_unit::~imu_unit()
 {
 	if (fd)
 		close_imu(fd);
+	if (gyro)
+		delete gyro;
 }
 
 imu_unit::imu_unit()
 {
 	int i, j;
-	for (i = 0; i < 3; i++)
-	for (j = 0; j < 3; j++)
-		R(i, j) = (i == j);
-	v.setZero();
 	a.setZero();
 	a(2) = 10;
 	fd = open_imu("/dev/i2c-2");
@@ -153,7 +195,37 @@ bool imu_unit::measure()
 	return true;
 }
 
-void imu_unit::get_position()
+bool imu_unit::get_position(const Vector3d &M, const Vector3d &F, double dt,
+			    double noise_w, double noise_a, double noise_m,
+			    double vibrating_w, double vibrating_a, double vibrating_m)
 {
-	measure();
+	if (measure() == false)
+		return false;
+	Vector3d w_meas(meas.wx, meas.wy, meas.wz);
+	SetIdentityError(Rw, vibrating_w);
+	SetIdentityError(Ra, vibrating_a);
+	SetIdentityError(Rm, vibrating_m);
+
+	SetIdentityError(Qw, noise_w);
+	SetIdentityError(Qa, noise_a);
+	SetIdentityError(Qm, noise_m);
+
+	Vector3d m_meas(meas.mx, meas.my, meas.mz);
+	Vector3d a_meas(meas.ax, meas.ay, meas.az);
+
+	// TODO: Here we need substract centrifugal force
+	Vector3d bottom = a_meas / a_meas.norm();
+	Vector3d north = m_meas / m_meas.norm();
+	Matrix3d Pb, Pn;
+
+	orient->kalman_step(gyro->w, gyro->P, bottom, north, Pb, Pn, dt);
+	gyro->kalman_step(w_meas, Qw, Rw, M, dt);
+	return true;
+}
+
+const Vector3d imu_unit::orientation()
+{
+	Vector3d rpy;
+	rpy.setZero();
+	return rpy;
 }

@@ -8,7 +8,7 @@
 #include <signal.h>
 #include <stdlib.h>
 
-#include <integrate.h>
+#include <mpu9250_unit.h>
 
 static struct timeval tv1,tv2,dtv;
 static struct timezone tz;
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
 	w.setZero();
 	v.setZero();
 	SetIdentityError(R, 1);
-	imu_unit imu("/dev/i2c-2", 1, I, w, R, v);
+	mpu9250_unit imu("/dev/i2c-2", 1, I, w, R, v);
 
 	double t, tp;
 	if (argc < 2)
@@ -145,11 +145,10 @@ int main(int argc, char **argv)
 				imu.gyro_data().w(0), imu.gyro_data().w(1),
 				imu.gyro_data().w(2));
 #else
-			const Vector3d rpy = imu.orientation();
-			const Vector3d a = imu.acceleration();
-			fprintf(f, "%lf %lf %lf %lf %lf %lf %lf\n", t,
-				rpy(0), rpy(1), rpy(2),
-				a(0), a(1), a(2));
+			const Quaterniond rot = imu.orientation();
+			Matrix3d R = rot.toRotationMatrix();
+			//fprintf(f, "%lf %lf %lf %lf\n", t,
+			//	rpy(0), rpy(1), rpy(2),
 #endif
 		}
 		tp = t;

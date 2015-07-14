@@ -19,7 +19,7 @@ void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
 				   const Matrix3d& Pb, const Matrix3d& Pn,
 				   double dt)
 {
-	Vector3d wg = rot.inverse() * w;
+	Vector3d wg = rot.inverse() * w * rot; // we rotating with rot^{-1}
 	double wglen = wg.norm();
 	double angle = wglen * dt;
 	Vector3d axis = wg / wglen;

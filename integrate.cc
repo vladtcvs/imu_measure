@@ -19,17 +19,35 @@ void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
 				   const Matrix3d& Pb, const Matrix3d& Pn,
 				   double dt)
 {
-	Vector3d wg = rot.inverse() * w * rot; // we rotating with rot^{-1}
+	/* Getting w in global coordinate system */
+	Quaterniond wq(0, w(0), w(1), w(2));
+	Quaterniond wgq = rot * wq * (rot.inverse());
+	Vector3d wg = wgq.vec();
+	assert(fabs(wgq.w()) < 1e-12);
+
+	/* Finding direction and angle of rotation */
 	double wglen = wg.norm();
 	double angle = wglen * dt;
 	Vector3d axis = wg / wglen;
 	double sina = sin(angle/2);
 	double cosa = cos(angle/2);
-	Quaterniond I;
-	I.setIdentity();
+
+	/* Finding calculated new orientation */
 	Quaterniond W(cosa, sina*axis(0), sina*axis(1), sina*axis(2));
 	Quaterniond rot_c = W * rot; // calculated orientation
-	
+
+	/* Finding cos(a) and cos(b) for calculated orientation */
+	Quaterniond i(0, 1, 0, 0), j(0, 0, 1, 0), k(0, 0, 0, 1);
+	double cosa_c = -(rot_c * i * (rot_c.inverse())).z();
+	double cosb_c = -(rot_c * j * (rot_c.inverse())).z();
+
+	/* Finding measured cos(a) and cos(b) */
+	double bottom_len = bottom.norm();
+	double cosa_z = bottom(0) / bottom_len;
+	double cosb_z = bottom(1) / bottom_len;
+
+	/* difference vector */
+	Vector2d dcos(cosa_z - cosa_z, cosb_z - cosb_c);
 }
 
 const Quaterniond& orientation_unit::get_orientation()

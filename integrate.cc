@@ -1,24 +1,17 @@
 #include <integrate.h>
 #include <mpu_9250.h>
+#include <math.h>
 
-orientation_unit::orientation_unit(const Matrix3d& nR)
-	: R(9),
-	PR(9,9)
+orientation_unit::orientation_unit(const Quaterniond& nrot)
 {
-	PR.setZero();
-	int i, j;
-	for (i = 0; i < 3; i++)
-	for (j = 0; j < 3; j++)
-		R(i*3 + j) = nR(i,j);
+	Prot.setZero();
+	rot = nrot;
 }
 
 orientation_unit::orientation_unit()
 {
-	PR.setZero();
-	int i, j;
-	for (i = 0; i < 3; i++)
-	for (j = 0; j < 3; j++)
-		R(i*3 + j) = (i == j);
+	Prot.setZero();
+	rot.setIdentity();
 }
 
 void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
@@ -26,17 +19,22 @@ void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
 				   const Matrix3d& Pb, const Matrix3d& Pn,
 				   double dt)
 {
+	Vector3d wg = rot.inverse() * w;
+	double wglen = wg.norm();
+	double angle = wglen * dt;
+	Vector3d axis = wg / wglen;
+	double sina = sin(angle/2);
+	double cosa = cos(angle/2);
+	Quaterniond I;
+	I.setIdentity();
+	Quaterniond W(cosa, sina*axis(0), sina*axis(1), sina*axis(2));
+	Quaterniond rot_c = W * rot; // calculated orientation
 	
 }
 
-const Matrix3d* orientation_unit::get_orientation()
+const Quaterniond& orientation_unit::get_orientation()
 {
-	Matrix3d *ori = new Matrix3d;
-	int i, j;
-	for (i = 0; i < 3; i++)
-	for (j = 0; j < 3; j++)
-		(*ori)(i,j) = R(i*3 + j);
-	return ori;
+	return rot;
 }
 
 

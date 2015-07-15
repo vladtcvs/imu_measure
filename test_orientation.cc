@@ -20,7 +20,7 @@ int main(void)
 	SetIdentityError(Pb, 0.1);
 	Matrix3d Pn;
 	SetIdentityError(Pn, 0.7);
-	
+
 	bottom(0) = bottom(1) = 0;
 	bottom(2) = -1;
 

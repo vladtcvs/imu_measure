@@ -2,6 +2,7 @@
 #include <fcntl.h>
 #include <mpu_9250.h>
 #include <stdio.h>
+#include <math.h>
 
 const static uint8_t addr_ga = 0x68;
 const static uint8_t addr_m = 0x0c;
@@ -64,7 +65,7 @@ typedef union {
 
 int read_imu_raw(int fd, imu_data_t *data)
 {
-	uint8_t regs[256];
+	static uint8_t regs[256];
 	
 	int reg;
 	
@@ -74,7 +75,7 @@ int read_imu_raw(int fd, imu_data_t *data)
 	if (ioctl(fd, I2C_SLAVE, addr_ga) < 0)
 		return -1;
 
-	for (reg = 0; reg < 256; reg++) {
+	for (reg = 59; reg <= 72; reg++) {
 		uint8_t r = reg;
 		int res;
 		write(fd, &r, 1);
@@ -119,7 +120,7 @@ int read_imu_raw(int fd, imu_data_t *data)
 	if (ioctl(fd, I2C_SLAVE, addr_m) < 0)
 		return -1;
 
-	for (reg = 0; reg < 256; reg++) {
+	for (reg = 3; reg <= 8; reg++) {
 		uint8_t r = reg;
 		int res;
 		write(fd, &r, 1);
@@ -148,56 +149,79 @@ int read_imu(int fd, orient_data_t *data)
 	imu_data_t raw;
 	if (read_imu_raw(fd, &raw) < 0)
 		return -1;
-	data->wx = raw.wx / gsens;
-	data->wy = raw.wy / gsens;
-	data->wz = raw.wz / gsens;
+	data->wx = raw.wx / gsens * M_PI/180;
+	data->wy = raw.wy / gsens * M_PI/180;
+	data->wz = raw.wz / gsens * M_PI/180;
 
 	data->ax = raw.ax / asens;
 	data->ay = raw.ay / asens;
 	data->az = raw.az / asens;
 
+	/* compass has different orientation */
+	data->mx = raw.my;
+	data->my = raw.mx;
+	data->mz = -raw.mz;
+
 	data->temp = raw.temp / 100.0;
 	return 0;
 }
 
-int setup_imu(int fd, int gfs, int afs)
+int setup_imu(int fd, enum mpu9250_gfs_e gfs, enum mpu9250_afs_e afs)
 {
+	uint8_t fchoice = 0;
 	uint8_t buf[2];
-	buf[0] = 27;
-	gfs &= 0x03;
-	buf[1] = gfs << 3;
-	write(fd, buf, 2);
-	switch (gfs) {
-	case 0:
-		gsens = 13100.;
-		break;
-	case 1:
-		gsens = 6550.;
-		break;
-	case 2:
-		gsens = 3280.;
-		break;
-	case 3:
-		gsens = 1640.;
-		break;
-	}
-	buf[0] = 28;
-	afs &= 0x03;
-	buf[1] = afs << 3;
-	write(fd, buf, 2);
-	switch (afs) {
-	case 0:
-		asens = 1638.4;
-		break;
-	case 1:
-		asens = 819.2;
-		break;
-	case 2:
-		asens = 409.6;
-		break;
-	case 3:
-		asens = 204.8;
-		break;
-	}
-}
 
+	/* setup gyro */
+	buf[0] = 27;
+	buf[1] = 0;
+	buf[1] |= fchoice & 0x03;
+
+	switch (gfs) {
+	case GFS_250_DPS:
+		buf[1] |= 0x00 << 3;
+		gsens = 32768/250.0;
+		break;
+	case GFS_500_DPS:
+		buf[1] |= 0x01 << 3;
+		gsens = 32768/500.0;
+		break;
+	case GFS_1000_DPS:
+		buf[1] |= 0x10 << 3;
+		gsens = 32768/1000.0;
+		break;
+	case GFS_2000_DPS:
+		buf[1] |= 0x11 << 3;
+		gsens = 32768/2000.0;
+		break;
+	}
+	write(fd, buf, 2);
+
+	/* setum accelerometer */
+	buf[0] = 28;
+	buf[1] = 0;
+
+	switch (afs) {
+	case AFS_2G:
+		buf[1] |= 0x00 << 3;
+		asens = 32768/(2*9.81);
+		break;
+	case AFS_4G:
+		buf[1] |= 0x01 << 3;
+		asens = 32768/(4*9.81);
+		break;
+	case AFS_8G:
+		buf[1] |= 0x10 << 3;
+		asens = 32768/(8*9.81);
+		break;
+	case AFS_16G:
+		buf[1] |= 0x11 << 3;
+		asens = 32768/(16*9.81);
+		break;
+	}
+	write(fd, buf, 2);
+
+	buf[0] = 29;
+	buf[1] |= 1 << 3;
+	buf[1] |= 0x00 & 0x07;
+	write(fd, buf, 2);
+}

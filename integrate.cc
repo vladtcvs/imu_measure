@@ -1,6 +1,7 @@
 #include <integrate.h>
 #include <mpu_9250.h>
 #include <math.h>
+#include <iostream>
 
 orientation_unit::orientation_unit(const Quaterniond& nrot)
 {
@@ -21,20 +22,27 @@ void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
 {
 	/* Getting w in global coordinate system */
 	Quaterniond wq(0, w(0), w(1), w(2));
+	//std::cout<<"rot: "<<rot.w()<<" ("<<rot.x()<<", "<<rot.y()<<", "<<rot.z()<<")\n";
 	Quaterniond wgq = rot * wq * (rot.inverse());
 	Vector3d wg = wgq.vec();
+	//std::cout<<"wgq: "<<wgq.w()<<" ("<<wgq.x()<<", "<<wgq.y()<<", "<<wgq.z()<<")\n";
 	assert(fabs(wgq.w()) < 1e-12);
 
 	/* Finding direction and angle of rotation */
+	Quaterniond rot_c;
 	double wglen = wg.norm();
-	double angle = wglen * dt;
-	Vector3d axis = wg / wglen;
-	double sina = sin(angle/2);
-	double cosa = cos(angle/2);
+	if (fabs(wglen) > 1e-6) {
+		double angle = wglen * dt;
+		Vector3d axis = wg / wglen;
+		double sina = sin(angle/2);
+		double cosa = cos(angle/2);
 
-	/* Finding calculated new orientation */
-	Quaterniond W(cosa, sina*axis(0), sina*axis(1), sina*axis(2));
-	Quaterniond rot_c = W * rot; // calculated orientation
+		/* Finding calculated new orientation */
+		Quaterniond W(cosa, sina*axis(0), sina*axis(1), sina*axis(2));
+		rot_c = W * rot; // calculated orientation
+	} else {
+		rot_c = rot;
+	}
 
 	/* Finding cos(a) and cos(b) for calculated orientation */
 	Quaterniond i(0, 1, 0, 0), j(0, 0, 1, 0), k(0, 0, 0, 1);
@@ -51,6 +59,7 @@ void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
 
 	// temporary solution
 	rot = rot_c;
+	//std::cout<<"\n------\n\n";
 }
 
 const Quaterniond& orientation_unit::get_orientation()
@@ -112,8 +121,8 @@ void imu_unit::step(const Vector3d& M, const Vector3d& F, double dt,
 
 	Matrix3d Qn = Qm / m.norm();
 	Vector3d north = m / m.norm();
-	orient->kalman_step(gyro->w, gyro->P, bottom, north, Qb, Qn, dt);
-	gyro->kalman_step(w, Qw, Rw, M, dt);
+//	orient->kalman_step(gyro->w, gyro->P, bottom, north, Qb, Qn, dt);
+//	gyro->kalman_step(w, Qw, Rw, M, dt);
 }
 
 const Vector3d QuaternionToRPY(const Quaterniond& q)

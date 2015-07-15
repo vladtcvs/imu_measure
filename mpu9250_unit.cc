@@ -1,4 +1,5 @@
 #include <mpu9250_unit.h>
+#include <iostream>
 
 mpu9250_unit::mpu9250_unit(std::string devname, double mass, Vector3d I, Vector3d w, Matrix3d R, Vector3d v)
 {
@@ -20,7 +21,7 @@ mpu9250_unit::mpu9250_unit(std::string devname, double mass, Vector3d I, Vector3
 		throw 1;
 	}
 	enable_compass(fd, 1);
-	setup_imu(fd, 0, 1);
+	setup_imu(fd, GFS_250_DPS, AFS_2G);
 }
 
 mpu9250_unit::mpu9250_unit()
@@ -43,7 +44,7 @@ mpu9250_unit::mpu9250_unit()
 		throw 1;
 	}
 	enable_compass(fd, 1);
-	setup_imu(fd, 0, 1);
+	setup_imu(fd, GFS_250_DPS, AFS_2G);
 }
 
 mpu9250_unit::~mpu9250_unit()
@@ -110,23 +111,23 @@ bool mpu9250_unit::measure()
 	if (read_imu(fd, &dc) < 0)
 		return false;
 	to_local(&dc);
-	meas.ax = dc.ax - offset.ax;
-	meas.ay = dc.ay - offset.ay;
-	meas.az = dc.az - offset.az;
+	meas.ax = dc.ax;
+	meas.ay = dc.ay;
+	meas.az = dc.az;
 
 	meas.wx = dc.wx - offset.wx;
 	meas.wy = dc.wy - offset.wy;
 	meas.wz = dc.wz - offset.wz;
 
-	meas.mx = dc.mx - offset.mx;
-	meas.my = dc.my - offset.my;
-	meas.mz = dc.mz - offset.mz;
+	meas.mx = dc.mx;
+	meas.my = dc.my;
+	meas.mz = dc.mz;
 	return true;
 }
 
 void mpu9250_unit::to_local(orient_data_t* data)
 {
-	double tx = (data->wx + data->wy)/1.414;
+/*	double tx = (data->wx + data->wy)/1.414;
 	double ty = (data->wx - data->wy)/1.414;
 	double tz = data->wz;
 
@@ -139,8 +140,8 @@ void mpu9250_unit::to_local(orient_data_t* data)
 	tz = data->az;
 
 	data->ax = tx;
-	data->ay = ty;
-	data->az = tz;
+	data->ay = -ty;
+	data->az = -tz;
 
 	tx = (data->mx + data->my)/1.414;
 	ty = (data->mx - data->my)/1.414;
@@ -148,7 +149,7 @@ void mpu9250_unit::to_local(orient_data_t* data)
 
 	data->mx = tx;
 	data->my = ty;
-	data->mz = tz;
+	data->mz = tz;*/
 }
 
 bool mpu9250_unit::get_position(const Vector3d &M, const Vector3d &F, double dt,
@@ -176,6 +177,8 @@ bool mpu9250_unit::get_position(const Vector3d &M, const Vector3d &F, double dt,
 	Vector3d bottom = a_meas / a_meas.norm();
 	Vector3d north = m_meas / m_meas.norm();
 	Matrix3d Pb, Pn;
+	std::cout<<"a: "<<a_meas(0)<<" "<<a_meas(1)<<" "<<a_meas(2)<<"\n";
+//	std::cout<<"north: "<<north(0)<<" "<<north(1)<<" "<<north(2)<<"\n";
 
 	imu->step(M, F, dt, w_meas, a_meas, m_meas, Rw, Ra, Rm, Qw, Qa, Qm);
 

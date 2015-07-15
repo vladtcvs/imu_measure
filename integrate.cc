@@ -22,10 +22,8 @@ void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
 {
 	/* Getting w in global coordinate system */
 	Quaterniond wq(0, w(0), w(1), w(2));
-	//std::cout<<"rot: "<<rot.w()<<" ("<<rot.x()<<", "<<rot.y()<<", "<<rot.z()<<")\n";
 	Quaterniond wgq = rot * wq * (rot.inverse());
 	Vector3d wg = wgq.vec();
-	//std::cout<<"wgq: "<<wgq.w()<<" ("<<wgq.x()<<", "<<wgq.y()<<", "<<wgq.z()<<")\n";
 	assert(fabs(wgq.w()) < 1e-12);
 
 	/* Finding direction and angle of rotation */
@@ -59,7 +57,6 @@ void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
 
 	// temporary solution
 	rot = rot_c;
-	//std::cout<<"\n------\n\n";
 }
 
 const Quaterniond& orientation_unit::get_orientation()
@@ -121,20 +118,30 @@ void imu_unit::step(const Vector3d& M, const Vector3d& F, double dt,
 
 	Matrix3d Qn = Qm / m.norm();
 	Vector3d north = m / m.norm();
-//	orient->kalman_step(gyro->w, gyro->P, bottom, north, Qb, Qn, dt);
-//	gyro->kalman_step(w, Qw, Rw, M, dt);
+	orient->kalman_step(gyro->w, gyro->P, bottom, north, Qb, Qn, dt);
+	gyro->kalman_step(w, Qw, Rw, M, dt);
+}
+
+const Vector3d imu_unit::rotation()
+{
+	Vector3d w = gyro->w;
+	Quaterniond rot = orient->rot;
+	Quaterniond wq(0, w(0), w(1), w(2));
+	Quaterniond wgq = rot * wq * (rot.inverse());
+	Vector3d wg = wgq.vec();
+	return wg;
 }
 
 const Vector3d QuaternionToRPY(const Quaterniond& q)
 {
-	double x, y, z, w;
-	x = q.x();
-	y = q.y();
-	z = q.z();
-	w = q.w();
-	double roll  = atan2(2*y*w - 2*x*z, 1 - 2*y*y - 2*z*z);
-	double pitch = atan2(2*x*w - 2*y*z, 1 - 2*x*x - 2*z*z);
-	double yaw   =  asin(2*x*y + 2*z*w);
+	double q0, q1, q2, q3;
+	q1 = q.x();
+	q2 = q.y();
+	q3 = q.z();
+	q0 = q.w();
+	double roll  = atan2(2*q0*q1 + 2*q2*q3, 1 - 2*q1*q1 - 2*q2*q2);
+	double pitch = asin(2*q0*q2 - 2*q1*q3);
+	double yaw   =  atan2(2*q0*q3 + 2*q1*q2, 1 - 2*q2*q2 - 2*q3*q3);
 	
 	return Vector3d(roll, pitch, yaw);
 }

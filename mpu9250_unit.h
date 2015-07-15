@@ -20,6 +20,12 @@ public:
 			  double noise_w, double noise_a, double noise_m,
 			  double vibrating_w, double vibrating_a, double vibrating_m);
 	const Quaterniond& orientation() {return imu->orientation();};
+	const Vector3d rotation() {return imu->rotation();};
+//#if DEBUG_GYRO
+	const gyro_unit& gyro_data() {return imu->gyro_data();}
+	const orient_data_t& measured_data() {return meas;}
+//#endif
+
 };
 
 #endif

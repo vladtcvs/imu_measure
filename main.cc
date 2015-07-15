@@ -138,7 +138,7 @@ int main(int argc, char **argv)
 		double dt = t - tp;
 
 		if (imu.get_position(M, F, dt, dzw, dza, dzm, dw * dt, da * dt, dm * dt)) {
-#ifdef DEBUG_GYRO
+#if DEBUG_GYRO
 			fprintf(f, "%lf %lf %lf %lf %lf %lf %lf\n", 
 			       t, imu.measured_data().wx,
 				imu.measured_data().wy, imu.measured_data().wz,
@@ -146,13 +146,24 @@ int main(int argc, char **argv)
 				imu.gyro_data().w(2));
 #else
 			const Quaterniond rot = imu.orientation();
-			Matrix3d R = rot.toRotationMatrix();
-			//fprintf(f, "%lf %lf %lf %lf\n", t,
-			//	rpy(0), rpy(1), rpy(2),
+			//Matrix3d R = rot.toRotationMatrix();
+			Vector3d rpy = QuaternionToRPY(rot);
+			Vector3d wg = imu.rotation();
+			Vector3d wl = imu.gyro_data().w;
+			Vector3d wm(imu.measured_data().wx, imu.measured_data().wy, imu.measured_data().wz);
+			fprintf(f, "%lf %lf %lf %lf "
+					"%lf %lf %lf "
+					"%lf %lf %lf "
+					"%lf %lf %lf\n", t,
+				rpy(0), rpy(1), rpy(2),
+				wg(0), wg(1), wg(2),
+				wl(0), wl(1), wl(2),
+				wm(0), wm(1), wm(2)
+       			);
 #endif
 		}
 		tp = t;
-		//usleep(10000);
+		//usleep(300000);
 		fflush(f);
 	}
 

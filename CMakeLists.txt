@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 project(mpu_9250)
 
+add_definitions(-DDEBUG_GYRO=0)
 #set(CMAKE_SYSTEM_INCLUDE_PATH /usr/include/)
 set(CMAKE_SYSTEM_INCLUDE_PATH /home/vlad/module/buildroot/buildroot/output/host/usr/arm-buildroot-linux-gnueabi/sysroot/usr/include)
 set(TOOCHAIN_BIN /home/vlad/module/buildroot/buildroot/output/host/usr/bin)

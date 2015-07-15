@@ -177,8 +177,6 @@ bool mpu9250_unit::get_position(const Vector3d &M, const Vector3d &F, double dt,
 	Vector3d bottom = a_meas / a_meas.norm();
 	Vector3d north = m_meas / m_meas.norm();
 	Matrix3d Pb, Pn;
-	std::cout<<"a: "<<a_meas(0)<<" "<<a_meas(1)<<" "<<a_meas(2)<<"\n";
-//	std::cout<<"north: "<<north(0)<<" "<<north(1)<<" "<<north(2)<<"\n";
 
 	imu->step(M, F, dt, w_meas, a_meas, m_meas, Rw, Ra, Rm, Qw, Qa, Qm);
 

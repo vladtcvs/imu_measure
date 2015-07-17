@@ -53,17 +53,15 @@ void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
 	double cosb_z = bottom(1) / bottom_len;
 
 	/* difference vector */
-	Vector2d dcos(cosa_z - cosa_z, cosb_z - cosb_c);
+	Vector2d dcos(cosa_z - cosa_c, cosb_z - cosb_c);
 
-	// temporary solution
-	rot = rot_c;
+	/* We use K to minizmize error */
+	Quaterniond K;
+	K.setIdentity();
+
+	rot = K * rot_c;
+	Prot = Prot;
 }
-
-const Quaterniond& orientation_unit::get_orientation()
-{
-	return rot;
-}
-
 
 imu_unit::imu_unit(double nmass, Vector3d& nI, Vector3d& nw,
 		   Quaterniond& nR, Vector3d& nv)
@@ -125,7 +123,7 @@ void imu_unit::step(const Vector3d& M, const Vector3d& F, double dt,
 const Vector3d imu_unit::rotation()
 {
 	Vector3d w = gyro->w;
-	Quaterniond rot = orient->rot;
+	Quaterniond rot = orient->get_orientation();
 	Quaterniond wq(0, w(0), w(1), w(2));
 	Quaterniond wgq = rot * wq * (rot.inverse());
 	Vector3d wg = wgq.vec();

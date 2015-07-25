@@ -9,13 +9,16 @@ set(CMAKE_SYSTEM_INCLUDE_PATH /usr/include/)
 set(CMAKE_C_COMPILER ${CROSS_PREFIX}gcc)
 set(CMAKE_CXX_COMPILER ${CROSS_PREFIX}g++)
 
+set (CMAKE_CXX_FLAGS "-g")
+set (CMAKE_C_FLAGS "-g")
+
 include_directories(${PROJECT_SOURCE_DIR} ${CMAKE_SYSTEM_INCLUDE_PATH}/eigen3)
 
 add_library(engines_set STATIC set_pwm.cc)
 add_library(filter STATIC filter.cc integrate.cc)
 add_library(mpu9250 STATIC mpu_9250.c)
 
-add_executable(imu_control imu_control.cc mpu9250_unit.cc)
+add_executable(imu_control imu_control.cc mpu9250_unit.cc read_config.cc)
 add_executable(imu_measure main.cc mpu9250_unit.cc)
 add_executable(set_bp set_bp.c)
 add_executable(test_orientation test_orientation.cc)

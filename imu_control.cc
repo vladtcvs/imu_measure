@@ -51,11 +51,11 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
-	printf("Using config file: %s\n", fname);
+	std::cout<<"Using config file: "<<fname<<std::endl;
 	std::ifstream config;
 	config.open(fname);
 	if (!config) {
-		printf("config file not found!\n");
+		std::cout<<"config file not found!\n";
 		exit(0);
 	}
 	std::stringstream ss;

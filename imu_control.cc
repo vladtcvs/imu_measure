@@ -32,6 +32,7 @@ int main(int argc, char **argv)
 	double dza = 0.05;
 	double da = 0.01;
 	double mass;
+	int noff;
 	Vector3d I;
 	Vector3d w;
 	Matrix3d R;
@@ -111,6 +112,13 @@ int main(int argc, char **argv)
 		I.setOnes();
 	}
 
+	try {
+		noff = parse_double(options["noff"]);
+	} catch (int err) {
+		std::cout<<"error parsing noff\n";
+		noff = 20;
+	}
+
 	w.setZero();
 	v.setZero();
 	R.setZero();
@@ -121,6 +129,8 @@ int main(int argc, char **argv)
 	mpu9250_unit *imu;
 	try {
 		 imu = new mpu9250_unit("/dev/i2c-2", mass, I, w, R, v);
+		 imu->measure_offset(noff);
+		 delete imu;
 	} catch(int code) {
 		std::cout<<"Error opening mpu9250: ";
 		switch (code) {
@@ -131,10 +141,6 @@ int main(int argc, char **argv)
 			std::cout<<"unknown\n";
 			break;
 		}
-		imu = NULL;
 	}
-
-	if (imu)
-		delete imu;
 	return 0;
 }

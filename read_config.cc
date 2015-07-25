@@ -56,6 +56,16 @@ double parse_double(std::string value)
 	return d;
 }
 
+int parse_int(std::string value)
+{
+	int d = 0;
+	std::istringstream i(value);
+	if (!(i >> d))
+		throw 1;
+	return d;
+}
+
+
 Eigen::Vector3d parse_vector3(std::string value)
 {
 	Eigen::Vector3d vec;

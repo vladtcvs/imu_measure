@@ -2,15 +2,16 @@ cmake_minimum_required(VERSION 2.6)
 project(mpu_9250)
 
 add_definitions(-DDEBUG_GYRO=0)
-#set(CMAKE_SYSTEM_INCLUDE_PATH /usr/include/)
-set(CMAKE_SYSTEM_INCLUDE_PATH /home/vlad/module/buildroot/buildroot/output/host/usr/arm-buildroot-linux-gnueabi/sysroot/usr/include)
-set(TOOCHAIN_BIN /home/vlad/module/buildroot/buildroot/output/host/usr/bin)
-set(CROSS_PREFIX ${TOOCHAIN_BIN}/arm-buildroot-linux-gnueabi-)
+set(CMAKE_SYSTEM_INCLUDE_PATH /usr/include/)
+#set(CMAKE_SYSTEM_INCLUDE_PATH /home/vlad/module/buildroot/buildroot/output/host/usr/arm-buildroot-linux-gnueabi/sysroot/usr/include)
+#set(TOOCHAIN_BIN /home/vlad/module/buildroot/buildroot/output/host/usr/bin)
+#set(CROSS_PREFIX ${TOOCHAIN_BIN}/arm-buildroot-linux-gnueabi-)
 set(CMAKE_C_COMPILER ${CROSS_PREFIX}gcc)
 set(CMAKE_CXX_COMPILER ${CROSS_PREFIX}g++)
 
 include_directories(${PROJECT_SOURCE_DIR} ${CMAKE_SYSTEM_INCLUDE_PATH}/eigen3)
 
+add_library(engines_set STATIC set_pwm.cc)
 add_library(filter STATIC filter.cc integrate.cc)
 add_library(mpu9250 STATIC mpu_9250.c)
 

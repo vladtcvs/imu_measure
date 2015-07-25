@@ -5,27 +5,20 @@
 
 orientation_unit::orientation_unit(const Quaterniond& nrot)
 {
-	Prot.setZero();
+	Prot = 0;
 	rot = nrot;
 }
 
 orientation_unit::orientation_unit()
 {
-	Prot.setZero();
+	Prot = 0;
 	rot.setIdentity();
 }
 
-void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
-				   const Vector3d& bottom, const Vector3d& north,
-				   const Matrix3d& Pb, const Matrix3d& Pn,
-				   double dt)
+void orientation_unit::kalman_step_global(const Vector3d& wg, const Matrix3d& Pwg,
+					  Vector2d sinx, Matrix2d Psinx,
+					  double dt)
 {
-	/* Getting w in global coordinate system */
-	Quaterniond wq(0, w(0), w(1), w(2));
-	Quaterniond wgq = rot * wq * (rot.inverse());
-	Vector3d wg = wgq.vec();
-	assert(fabs(wgq.w()) < 1e-12);
-
 	/* Finding direction and angle of rotation */
 	Quaterniond rot_c;
 	double wglen = wg.norm();
@@ -42,25 +35,42 @@ void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
 		rot_c = rot;
 	}
 
-	/* Finding cos(a) and cos(b) for calculated orientation */
-	Quaterniond i(0, 1, 0, 0), j(0, 0, 1, 0), k(0, 0, 0, 1);
-	double cosa_c = -(rot_c * i * (rot_c.inverse())).z();
-	double cosb_c = -(rot_c * j * (rot_c.inverse())).z();
-
-	/* Finding measured cos(a) and cos(b) */
-	double bottom_len = bottom.norm();
-	double cosa_z = bottom(0) / bottom_len;
-	double cosb_z = bottom(1) / bottom_len;
-
-	/* difference vector */
-	Vector2d dcos(cosa_z - cosa_c, cosb_z - cosb_c);
-
+	Quaterniond I(0,1,0,0), J(0,0,1,0);
+	Vector2d sinx_c;
+	sinx_c(0) = -(rot_c*I*rot_c.inverse()).z();
+	sinx_c(1) = -(rot_c*J*rot_c.inverse()).z();
+	Vector2d y = sinx_c - sinx;
+	
 	/* We use K to minizmize error */
 	Quaterniond K;
 	K.setIdentity();
 
+
 	rot = K * rot_c;
 	Prot = Prot;
+}
+
+
+void orientation_unit::kalman_step(const Vector3d& w, const Matrix3d& Pw,
+				   const Vector3d& bottom, const Vector3d& north,
+				   const Matrix3d& Pb, const Matrix3d& Pn,
+				   double dt)
+{
+	/* Getting w in global coordinate system */
+	Quaterniond wq(0, w(0), w(1), w(2));
+	Quaterniond wgq = rot * wq * (rot.inverse());
+	Vector3d wg = wgq.vec();
+	assert(fabs(wgq.w()) < 1e-12);
+
+	Matrix3d Pwg = Pw;
+
+	Vector2d sinx;
+	sinx(0) = bottom(0)/bottom.norm();
+	sinx(1) = bottom(1)/bottom.norm();
+	Matrix2d Psinx;
+	Psinx.setZero();
+	
+	kalman_step_global(wg, Pwg, sinx, Psinx, dt);
 }
 
 imu_unit::imu_unit(double nmass, Vector3d& nI, Vector3d& nw,

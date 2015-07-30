@@ -9,9 +9,12 @@
 #include <sstream>
 #include <iostream>
 
+mpu9250_unit *imu;
+
 void close_all()
 {
-	
+	if (imu)
+		delete imu;
 }
 
 static void signal_hdl(int signum)
@@ -126,11 +129,13 @@ int main(int argc, char **argv)
 	for (int j = 0; j < 3; j++)
 		R(i, j) = (i == j);
 
-	mpu9250_unit *imu;
+	
 	try {
 		 imu = new mpu9250_unit("/dev/i2c-2", mass, I, w, R, v);
 		 imu->measure_offset(noff);
-		 delete imu;
+		 while (true) {
+			 
+		 }
 	} catch(int code) {
 		std::cout<<"Error opening mpu9250: ";
 		switch (code) {

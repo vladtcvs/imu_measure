@@ -15,23 +15,10 @@ set (CMAKE_C_FLAGS "-g")
 include_directories(${PROJECT_SOURCE_DIR} ${CMAKE_SYSTEM_INCLUDE_PATH}/eigen3)
 
 add_library(engines_set STATIC set_pwm.cc)
-add_library(filter STATIC filter.cc integrate.cc)
 add_library(mpu9250 STATIC mpu_9250.c)
 
-add_executable(imu_control imu_control.cc mpu9250_unit.cc read_config.cc)
-add_executable(imu_measure main.cc mpu9250_unit.cc)
+add_executable(control main.cc mpu9250_unit.cc integrate.cc stabilization.cc)
 add_executable(set_bp set_bp.c)
-add_executable(test_orientation test_orientation.cc)
 
-add_dependencies(test_orientation filter)
-add_dependencies(imu_measure mpu9250 filter)
-add_dependencies(imu_control mpu9250 filter engines_set)
-add_dependencies(set_bp mpu9250)
-
-target_link_libraries(test_orientation filter)
-target_link_libraries(imu_measure mpu9250 filter)
-target_link_libraries(imu_control mpu9250 filter engines_set)
+target_link_libraries(control mpu9250 engines_set)
 target_link_libraries(set_bp mpu9250)
-
-install(TARGETS imu_measure set_bp RUNTIME DESTINATION bin)
-install(TARGETS mpu9250 filter ARCHIVE DESTINATION lib)

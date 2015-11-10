@@ -7,20 +7,31 @@
 #include <sys/time.h>
 #include <signal.h>
 #include <stdlib.h>
-
+#include <set_pwm.h>
 #include <mpu9250_unit.h>
 
 static struct timeval tv1,tv2,dtv;
 static struct timezone tz;
 
-static FILE *f;
 static int fd;
+
+const Vector3d QuaternionToRPY(const Quaterniond& q)
+{
+	double q0, q1, q2, q3;
+	q1 = q.x();
+	q2 = q.y();
+	q3 = q.z();
+	q0 = q.w();
+	double roll  = atan2(2*q0*q1 + 2*q2*q3, 1 - 2*q1*q1 - 2*q2*q2);
+	double pitch = asin(2*q0*q2 - 2*q1*q3);
+	double yaw   =  atan2(2*q0*q3 + 2*q1*q2, 1 - 2*q2*q2 - 2*q3*q3);
+	
+	return Vector3d(roll, pitch, yaw);
+}
 
 static void signal_hdl(int signum)
 {
 	if (signum == SIGINT || signum == SIGTERM) {
-		if (f != stdout)
-			fclose(f);
 		close_imu(fd);
 		exit(0);
 	}
@@ -94,77 +105,23 @@ void measure_stay(int fd, orient_data_t *data)
 int main(int argc, char **argv)
 {
 	int i, j;
-	double dzw = 0.05;
-	double dw = 0.01;
-	double dzm = 0.05;
-	double dm = 0.01;
-	double dza = 0.05;
-	double da = 0.01;
-	Vector3d I;
-	Vector3d w;
-	Matrix3d R;
-	Vector3d M, F;
-	Vector3d v;
-
-	if (argc >= 8) {
-		sscanf(argv[2], "%lf", &dw);
-		sscanf(argv[3], "%lf", &da);
-		sscanf(argv[4], "%lf", &dm);
-
-		sscanf(argv[5], "%lf", &dzw);
-		sscanf(argv[6], "%lf", &dza);
-		sscanf(argv[7], "%lf", &dzm);
-	}
-	M.setZero();
-	F.setZero();
-	I.setOnes();
-	w.setZero();
-	v.setZero();
-	SetIdentityError(R, 1);
-	mpu9250_unit imu("/dev/i2c-2", 1, I, w, R, v);
+	mpu9250_unit imu("/dev/i2c-2");
 
 	double t, tp;
-	if (argc < 2)
-		f = stdout;
-	else
-		f = fopen(argv[1], "wt");
 	signal(SIGINT, signal_hdl);
+	imu.set_errors(5, 0.2);
 	imu.measure_offset(20);
-	fprintf(stderr, "offset measured\n");
 	time_start();
 	tp = time_stop()/1000;
 	while (1) {
 		t = time_stop()/1000.0;
 		double dt = t - tp;
-
-		if (imu.get_position(M, F, dt, dzw, dza, dzm, dw * dt, da * dt, dm * dt)) {
-#if DEBUG_GYRO
-			fprintf(f, "%lf %lf %lf %lf %lf %lf %lf\n", 
-			       t, imu.measured_data().wx,
-				imu.measured_data().wy, imu.measured_data().wz,
-				imu.gyro_data().w(0), imu.gyro_data().w(1),
-				imu.gyro_data().w(2));
-#else
+		if (imu.iterate_position(dt)) {
 			const Quaterniond rot = imu.orientation();
-			//Matrix3d R = rot.toRotationMatrix();
 			Vector3d rpy = QuaternionToRPY(rot);
-			Vector3d wg = imu.rotation();
-			Vector3d wl = imu.gyro_data().w;
-			Vector3d wm(imu.measured_data().wx, imu.measured_data().wy, imu.measured_data().wz);
-			fprintf(f, "%lf %lf %lf %lf "
-					"%lf %lf %lf "
-					"%lf %lf %lf "
-					"%lf %lf %lf\n", t,
-				rpy(0), rpy(1), rpy(2),
-				wg(0), wg(1), wg(2),
-				wl(0), wl(1), wl(2),
-				wm(0), wm(1), wm(2)
-       			);
-#endif
+			printf("%lf %lf %lf %lf\n", t, rpy(0), rpy(1), rpy(2));
 		}
 		tp = t;
-		//usleep(300000);
-		fflush(f);
 	}
 
 	return 0;

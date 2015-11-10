@@ -5,27 +5,18 @@
 
 class mpu9250_unit {
 	int fd;
-	imu_unit *imu;
+	madgwick imu;
 	orient_data_t offset;
 	orient_data_t meas;
-	void to_local(orient_data_t *data);
+	bool measure();
 public:
 	mpu9250_unit();
-	mpu9250_unit(std::string devname, double mass, Vector3d I, Vector3d w,
-		 Matrix3d R, Vector3d v);
+	mpu9250_unit(std::string devname);
 	~mpu9250_unit();
 	bool measure_offset(const int N);
-	bool measure();
-	bool get_position(const Vector3d &M, const Vector3d &F, double dt,
-			  double noise_w, double noise_a, double noise_m,
-			  double vibrating_w, double vibrating_a, double vibrating_m);
-	const Quaterniond& orientation() {return imu->orientation();};
-	const Vector3d rotation() {return imu->rotation();};
-//#if DEBUG_GYRO
-	const gyro_unit& gyro_data() {return imu->gyro_data();}
-	const orient_data_t& measured_data() {return meas;}
-//#endif
-
+	void set_errors(float gyro_err, float gyro_drift);
+	bool iterate_position(double dt);
+	const Quaterniond orientation() {return imu.orientation();}
 };
 
 #endif

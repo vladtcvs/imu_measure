@@ -1,6 +1,7 @@
 #ifndef __SET_PWM_H__
 #define __SET_PWM_H__
 
+#include <stdint.h>
 #define NCH 11
 
 class set_engines {

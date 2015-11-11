@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <set_pwm.h>
 #include <mpu9250_unit.h>
+#include <stabilization.h>
 
 static struct timeval tv1,tv2,dtv;
 static struct timezone tz;
@@ -107,8 +108,8 @@ int main(int argc, char **argv)
 	int i, j;
 	double t, tp;
 	signal(SIGINT, signal_hdl);
-	
-	
+
+	//stabilizer stab("/dev/spi0.0");
 	mpu9250_unit imu("/dev/i2c-2");
 	imu.set_errors(5, 0.2, -89, 54, 254);
 	imu.measure_offset(20);

@@ -3,6 +3,10 @@
 
 mpu9250_unit::mpu9250_unit(std::string devname)
 {
+	adjmx = 0;
+	adjmy = 0;
+	adjmz = 0;
+
 	offset.ax = 0;
 	offset.ay = 0;
 	offset.az = 0;
@@ -20,10 +24,16 @@ mpu9250_unit::mpu9250_unit(std::string devname)
 	}
 	enable_compass(fd, 1);
 	setup_imu(fd, GFS_250_DPS, AFS_2G);
+	cosa = 1;
+	sina = 0;
 }
 
 mpu9250_unit::mpu9250_unit()
 {
+	adjmx = 0;
+	adjmy = 0;
+	adjmz = 0;
+
 	offset.ax = 0;
 	offset.ay = 0;
 	offset.az = 0;
@@ -41,6 +51,8 @@ mpu9250_unit::mpu9250_unit()
 	}
 	enable_compass(fd, 1);
 	setup_imu(fd, GFS_250_DPS, AFS_2G);
+	cosa = 1;
+	sina = 0;
 }
 
 mpu9250_unit::~mpu9250_unit()
@@ -95,27 +107,56 @@ bool mpu9250_unit::measure_offset(const int N)
 		return false;
 	}
 
+	offset.mx -= adjmx;
+	offset.my -= adjmy;
+	offset.mz -= adjmz;
+
+	angle = imu.set_start(offset.ax, offset.ay, offset.az,
+		      offset.mx, offset.my, offset.mz);
+	cosa = cos(angle);
+	sina = sin(angle);
 	return true;
 }
 
+orient_data_t mpu9250_unit::to_local(orient_data_t tmp)
+{
+	orient_data_t res;
+	res.az = tmp.az;
+	res.mz = tmp.mz;
+	res.wz = tmp.wz;
+
+	res.ax = tmp.ax * cosa + tmp.ay * sina;
+	res.ay = tmp.ay * cosa - tmp.ax * sina;
+	
+	res.mx = tmp.mx * cosa + tmp.my * sina;
+	res.my = tmp.my * cosa - tmp.mx * sina;
+	
+	res.wx = tmp.wx * cosa + tmp.wy * sina;
+	res.wy = tmp.wy * cosa - tmp.wx * sina;
+	return res;
+}
 
 bool mpu9250_unit::measure()
 {
+	orient_data_t tmp;
 	orient_data_t dc;
 	if (read_imu(fd, &dc) < 0)
 		return false;
 
-	meas.ax = dc.ax;
-	meas.ay = dc.ay;
-	meas.az = dc.az;
+	tmp.ax = dc.ax;
+	tmp.ay = dc.ay;
+	tmp.az = dc.az;
 
-	meas.wx = dc.wx - offset.wx;
-	meas.wy = dc.wy - offset.wy;
-	meas.wz = dc.wz - offset.wz;
+	tmp.wx = dc.wx - offset.wx;
+	tmp.wy = dc.wy - offset.wy;
+	tmp.wz = dc.wz - offset.wz;
 
-	meas.mx = dc.mx;
-	meas.my = dc.my;
-	meas.mz = dc.mz;
+	tmp.mx = dc.mx - adjmx;
+	tmp.my = dc.my - adjmy;
+	tmp.mz = dc.mz - adjmz;
+
+	meas = to_local(tmp);
+	//meas = tmp;
 	return true;
 }
 
@@ -127,7 +168,11 @@ bool mpu9250_unit::iterate_position(double dt)
 	return true;
 }
 
-void mpu9250_unit::set_errors(float gyro_err, float gyro_drift)
+void mpu9250_unit::set_errors(float gyro_err, float gyro_drift,
+			      float amx, float amy, float amz)
 {
+	adjmx = amx;
+	adjmy = amy;
+	adjmz = amz;
 	imu.init(gyro_err, gyro_drift);
 }

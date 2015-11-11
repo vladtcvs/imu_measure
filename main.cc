@@ -105,24 +105,39 @@ void measure_stay(int fd, orient_data_t *data)
 int main(int argc, char **argv)
 {
 	int i, j;
-	mpu9250_unit imu("/dev/i2c-2");
-
 	double t, tp;
 	signal(SIGINT, signal_hdl);
-	imu.set_errors(5, 0.2);
+	
+	
+	mpu9250_unit imu("/dev/i2c-2");
+	imu.set_errors(5, 0.2, -89, 54, 254);
 	imu.measure_offset(20);
+	/*fd = open_imu("/dev/i2c-2");
+	setup_imu(fd, GFS_250_DPS, AFS_2G);
+	enable_compass(fd, 1);*/
 	time_start();
 	tp = time_stop()/1000;
 	while (1) {
+		orient_data_t orient;
 		t = time_stop()/1000.0;
 		double dt = t - tp;
+		//imu.measure();
+		//printf("%lf %lf %lf %lf\n", t, imu.meas.mx, imu.meas.my, imu.meas.mz);
 		if (imu.iterate_position(dt)) {
 			const Quaterniond rot = imu.orientation();
 			Vector3d rpy = QuaternionToRPY(rot);
-			printf("%lf %lf %lf %lf\n", t, rpy(0), rpy(1), rpy(2));
+			printf("%lf %lf %lf %lf\n", t, rpy(0)*180/3.141, rpy(1)*180/3.141, rpy(2)*180/3.141);
 		}
+/*
+		if (read_imu(fd, &orient) < 0) {
+			printf("Error reading\n");
+			break;
+		}
+		printf("%lf %i %i %i %i %i %i\n", t,
+			orient.mx, orient.my, orient.mz,
+			orient.ax, orient.ay, orient.az);*/
 		tp = t;
 	}
-
+	//close_imu(fd);
 	return 0;
 }

@@ -3,6 +3,16 @@
 #include <math.h>
 #include <iostream>
 
+float madgwick::set_start(float ax, float ay, float az, float mx, float my, float mz)
+{
+	angle = atan2(my, mx);
+	std::cout << "angle = "<< angle * 180/M_PI << "\n";
+	b_z = mz;
+	b_x = sqrt(mx*mx + my*my);
+	std::cout << "mx = " << mx << " my = " << my << " mz = " << mz << "\n";
+	return angle;
+}
+
 // Function to compute one filter iteration
 void madgwick::filterUpdate(float deltat,
 			    float w_x, float w_y, float w_z,
@@ -161,7 +171,7 @@ void madgwick::iterate(double dt, const orient_data_t &measured)
 
 const Quaterniond madgwick::orientation()
 {
+	Quaterniond Ang(cos(angle/2), 0, 0, sin(-angle/2));  
 	Quaterniond S(SEq_1, SEq_2, SEq_3, SEq_4);
-	return S;
+	return Ang*S;
 }
-

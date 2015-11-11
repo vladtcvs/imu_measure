@@ -6,7 +6,7 @@
 
 const static uint8_t addr_ga = 0x68;
 const static uint8_t addr_m = 0x0c;
-static double gsens = 131.0, asens = 2.048;
+static double gsens = 131.0, asens = 2.048, msens = 1/*15e-6*/;
 
 int open_imu(const char *devname)
 {
@@ -47,21 +47,30 @@ int enable_compass(int fd, int enable)
 			return -1;
 		}
 		buf[0] = 0x0A;
-		buf[1] = 0x12;
-		write(fd, buf, 2);
+		buf[1] = 0x11;
+		if (write(fd, buf, 2) < 0) {
+			printf("Can not configure compass\n");
+			return -1;
+		}
 	}
 	return 0;
 }
 
-typedef union {
-	struct {
-		int16_t ax, ay, az;
-		int16_t wx, wy, wz;
-		int16_t mx, my, mz;
-		int16_t temp;
-	};
-	int16_t data[10];
-} imu_data_t;
+int reset_compass(int fd)
+{
+	uint8_t buf[2];
+	if (ioctl(fd, I2C_SLAVE, addr_m) < 0) {
+		printf("can not ioctl\n");
+		return -1;
+	}
+	buf[0] = 0x0A;
+	buf[1] = 0x11;
+	if (write(fd, buf, 2) < 0) {
+		printf("Can not configure compass\n");
+		return -1;
+	}
+	return 0;
+}
 
 int read_imu_raw(int fd, imu_data_t *data)
 {
@@ -125,6 +134,10 @@ int read_imu_raw(int fd, imu_data_t *data)
 		int res;
 		write(fd, &r, 1);
 		res = read(fd, &(regs[reg]), 1);
+		if (res < 0) {
+			printf("Error reading compass\n");
+			return -1;
+		}
 	}
 
 	data->mx = 0;
@@ -141,6 +154,7 @@ int read_imu_raw(int fd, imu_data_t *data)
 	data->mz |= regs[8];
 	data->mz <<= 8;
 	data->mz |= regs[7];
+	reset_compass(fd);
 	return 0;
 }
 
@@ -158,9 +172,9 @@ int read_imu(int fd, orient_data_t *data)
 	data->az = raw.az / asens;
 
 	/* compass has different orientation */
-	data->mx = raw.my;
-	data->my = raw.mx;
-	data->mz = -raw.mz;
+	data->mx = raw.my * msens;
+	data->my = raw.mx * msens;
+	data->mz = -raw.mz * msens;
 
 	data->temp = raw.temp / 100.0;
 	return 0;

@@ -3,14 +3,102 @@
 #include <math.h>
 #include <iostream>
 
-float madgwick::set_start(float ax, float ay, float az, float mx, float my, float mz)
+Quaternionf find_orientation(float ax, float ay, float az,
+			     float mx, float my, float mz)
 {
-	angle = atan2(my, mx);
-	std::cout << "angle = "<< angle * 180/M_PI << "\n";
-	b_z = mz;
-	b_x = sqrt(mx*mx + my*my);
-	std::cout << "mx = " << mx << " my = " << my << " mz = " << mz << "\n";
-	return angle;
+	float gamma, cosg, angle;
+	float al;
+	Quaternionf n;
+
+	al = sqrt(ax*ax + ay*ay + az*az);
+	ax /= al;
+	ay /= al;
+	az /= al;
+
+	cosg = -az;
+	gamma = acos(cosg);
+
+	if (gamma < 1e-6) {
+		n.w() = 1;
+		n.x() = n.y() = n.z() = 0;
+	} else {
+		float nl = sqrt(ax*ax + ay*ay);
+		n.w() = cos(gamma/2);
+		n.x() = sin(gamma/2) * ay / nl;
+		n.y() = -sin(gamma/2) * ax / nl;
+		n.z() = 0;
+	}
+
+	Quaternionf m(0, mx, my, mz), mr;	
+	mr = n*m*n.inverse();
+
+	angle = atan2(mr.y(), mr.x());
+	Quaternionf rot(cos(angle/2), 0, 0, -sin(angle/2));
+	return rot*n;
+}
+
+void kalman::init(float E, float F, Quaternionf pos)
+{
+	E2 = E;
+	F2 = F;
+	H2 = E;
+	q = pos;
+}
+
+Quaternionf kalman::set_start(float ax, float ay, float az, float mx, float my, float mz)
+{
+	q = find_orientation(ax, ay, az, mx, my, mz);
+	H2 = E2;
+}
+
+void kalman::iterate(double dt, const orient_data_t& measured)
+{
+	Quaternionf meas = find_orientation(measured.ax, measured.ay,
+					    measured.az, measured.mx,
+					    measured.my,measured.mz);
+	float nH2 = E2 - E2*E2/(4*(H2 + F2));
+	float gamma = E2/(2*(H2 + F2));
+	float wl = sqrt(measured.wx*measured.wx +
+			measured.wy*measured.wy +
+			measured.wz*measured.wz);
+	Quaternionf wql(cos(wl*dt/2),
+			sin(wl*dt/2) * measured.wx/wl,
+			sin(wl*dt/2) * measured.wy/wl,
+			sin(wl*dt/2) * measured.wz/wl);
+	Quaternionf w = q * wql * q.inverse();
+	Quaternionf qest = w * q;
+	q.w() = gamma * qest.w() + (1-gamma) * meas.w();
+	q.x() = gamma * qest.x() + (1-gamma) * meas.x();
+	q.y() = gamma * qest.y() + (1-gamma) * meas.y();
+	q.z() = gamma * qest.z() + (1-gamma) * meas.z();
+	float ql = q.norm();
+	q.w() /= ql;
+	q.x() /= ql;
+	q.y() /= ql;
+	q.z() /= ql;
+	H2 = nH2;
+}
+
+Quaternionf kalman::orientation()
+{
+	return q;
+}
+
+void kalman::init_err(float E, float F)
+{
+	E2 = E;
+	F2 = F;
+}
+
+Quaternionf madgwick::set_start(float ax, float ay, float az, float mx, float my, float mz)
+{
+	initial = find_orientation(ax, ay, az, mx, my, mz);
+	Quaternionf m(0, mx, my, mz), mr;
+	mr = initial*m*initial.inverse();
+
+	b_z = mr.z();
+	b_x = sqrt(mr.x()*mr.x() + mr.y()*mr.y());
+	return initial;
 }
 
 // Function to compute one filter iteration
@@ -19,6 +107,10 @@ void madgwick::filterUpdate(float deltat,
 			    float a_x, float a_y, float a_z,
 			    float m_x, float m_y, float m_z)
 {
+   /* std::cout<< "W:\t" << w_x << " \t" << w_y << " \t" << w_z << " \t";
+    std::cout<< "A:\t" << a_x << " \t" << a_y << " \t" << a_z << " \t";
+    std::cout<< "M:\t" << m_x << " \t" << m_y << " \t" << m_z << "\n";*/
+
     // local system variables
     float norm; // vector norm
     float SEqDot_omega_1, SEqDot_omega_2, SEqDot_omega_3, SEqDot_omega_4; // quaternion rate from gyroscopes elements
@@ -162,16 +254,43 @@ void madgwick::init(float meas_err, float drift)
 	zeta = sqrt(3.0f / 4.0f) * gyroMeasDrift; // compute zeta
 }
 
-void madgwick::iterate(double dt, const orient_data_t &measured)
+orient_data_t madgwick::to_local(orient_data_t imu_data)
 {
-	filterUpdate(dt, measured.wx, measured.wy, measured.wz,
-		     measured.ax, measured.ay, measured.az,
-		     measured.mx, measured.my, measured.mz);
+	orient_data_t res;
+	Quaternionf a(0, imu_data.ax, imu_data.ay, imu_data.az);
+	Quaternionf m(0, imu_data.mx, imu_data.my, imu_data.mz);
+	Quaternionf w(0, imu_data.wx, imu_data.wy, imu_data.wz);
+	a = initial.inverse()*a*initial;
+	w = initial.inverse()*w*initial;
+	m = initial.inverse()*m*initial;
+	res.ax = a.x();
+	res.ay = a.y();
+	res.az = a.z();
+
+	res.mx = m.x();
+	res.my = m.y();
+	res.mz = m.z();
+
+	res.wx = w.x();
+	res.wy = w.y();
+	res.wz = w.z();
+	return res;
 }
 
-const Quaterniond madgwick::orientation()
+void madgwick::iterate(double dt, const orient_data_t &measured)
 {
-	Quaterniond Ang(cos(angle/2), 0, 0, sin(-angle/2));  
-	Quaterniond S(SEq_1, SEq_2, SEq_3, SEq_4);
-	return Ang*S;
+	Quaternionf a(0, measured.ax, measured.ay, measured.az),
+			m(0, measured.mx, measured.my, measured.mz),
+			w(0, measured.wx, measured.wy, measured.wz);
+	a = initial*a*initial.inverse();
+	m = initial*m*initial.inverse();
+	w = initial*w*initial.inverse();
+	filterUpdate(dt, w.x(), w.y(), w.z(), a.x(), a.y(), a.z(), m.x(), m.y(), m.z());
 }
+
+Quaternionf madgwick::orientation()
+{
+	Quaternionf S(SEq_1, SEq_2, SEq_3, SEq_4);
+	return initial.inverse() * S;
+}
+

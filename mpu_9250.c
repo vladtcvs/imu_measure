@@ -169,7 +169,7 @@ int read_imu(int fd, orient_data_t *data)
 
 	data->ax = raw.ax / asens;
 	data->ay = raw.ay / asens;
-	data->az = raw.az / asens;
+	data->az = -raw.az / asens;
 
 	/* compass has different orientation */
 	data->mx = raw.my * msens;

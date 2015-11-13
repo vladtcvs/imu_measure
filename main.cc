@@ -16,18 +16,18 @@ static struct timezone tz;
 
 static int fd;
 
-const Vector3d QuaternionToRPY(const Quaterniond& q)
+Vector3f QuaternionToRPY(const Quaternionf& q)
 {
-	double q0, q1, q2, q3;
+	float q0, q1, q2, q3;
 	q1 = q.x();
 	q2 = q.y();
 	q3 = q.z();
 	q0 = q.w();
-	double roll  = atan2(2*q0*q1 + 2*q2*q3, 1 - 2*q1*q1 - 2*q2*q2);
-	double pitch = asin(2*q0*q2 - 2*q1*q3);
-	double yaw   =  atan2(2*q0*q3 + 2*q1*q2, 1 - 2*q2*q2 - 2*q3*q3);
+	float roll  = atan2(2*q0*q1 + 2*q2*q3, 1 - 2*q1*q1 - 2*q2*q2);
+	float pitch = asin(2*q0*q2 - 2*q1*q3);
+	float yaw   =  atan2(2*q0*q3 + 2*q1*q2, 1 - 2*q2*q2 - 2*q3*q3);
 	
-	return Vector3d(roll, pitch, yaw);
+	return Vector3f(roll, pitch, yaw);
 }
 
 static void signal_hdl(int signum)
@@ -109,36 +109,41 @@ int main(int argc, char **argv)
 	double t, tp;
 	signal(SIGINT, signal_hdl);
 
-	//stabilizer stab("/dev/spi0.0");
+	//stabilizer stab("/dev/spidev0.0", 10000, 22);
 	mpu9250_unit imu("/dev/i2c-2");
-	imu.set_errors(5, 0.2, -89, 54, 254);
-	imu.measure_offset(20);
-	/*fd = open_imu("/dev/i2c-2");
-	setup_imu(fd, GFS_250_DPS, AFS_2G);
-	enable_compass(fd, 1);*/
+	//stab.set_parameters(1, 0, 0, 0);
+	//stab.set_hardness(1, 1, 0.01);
+	imu.set_errors(100, 0.001, -1.3, 0.288, -0.96, -89, 54, 254);
+	imu.measure_offset(100);
+	Quaternionf grav(0, imu.offset.ax, imu.offset.ay, imu.offset.az);
+	printf("Gravity: %f %f %f\n", grav.x(), grav.y(), grav.z());
+	
+	Quaternionf flux(0, imu.offset.mx, imu.offset.my, imu.offset.mz);
+	printf("Flux: %f %f %f\n", flux.x(), flux.y(), flux.z());
+	Quaternionf initial = imu.initial;
+	grav = initial*grav*initial.inverse();
+	flux = initial*flux*initial.inverse();
+	printf("Gravity: %f %f %f\n", grav.x(), grav.y(), grav.z());
+	printf("Flux: %f %f %f\n", flux.x(), flux.y(), flux.z());
+	
+	Quaternionf pos = find_orientation(imu.offset.ax, imu.offset.ay, imu.offset.az, imu.offset.mx, imu.offset.my, imu.offset.mz);
+	Vector3f rpy = QuaternionToRPY(pos);
+	printf("RPY = %lf %lf %lf\n", rpy(0)*180/M_PI, rpy(1)*180/M_PI, rpy(2)*180/M_PI);
+
 	time_start();
 	tp = time_stop()/1000;
 	while (1) {
 		orient_data_t orient;
 		t = time_stop()/1000.0;
 		double dt = t - tp;
-		//imu.measure();
-		//printf("%lf %lf %lf %lf\n", t, imu.meas.mx, imu.meas.my, imu.meas.mz);
 		if (imu.iterate_position(dt)) {
-			const Quaterniond rot = imu.orientation();
-			Vector3d rpy = QuaternionToRPY(rot);
-			printf("%lf %lf %lf %lf\n", t, rpy(0)*180/3.141, rpy(1)*180/3.141, rpy(2)*180/3.141);
+			const Quaternionf rot = imu.orientation();
+			Vector3f rpy = QuaternionToRPY(rot);
+		//	stab.current_rpy(rpy(0), rpy(1), rpy(2));
+			printf("RPY = %lf %lf %lf. t = %lf\n", rpy(0)*180/M_PI, rpy(1)*180/M_PI, rpy(2)*180/M_PI, t);
 		}
-/*
-		if (read_imu(fd, &orient) < 0) {
-			printf("Error reading\n");
-			break;
-		}
-		printf("%lf %i %i %i %i %i %i\n", t,
-			orient.mx, orient.my, orient.mz,
-			orient.ax, orient.ay, orient.az);*/
 		tp = t;
 	}
-	//close_imu(fd);
+	
 	return 0;
 }

@@ -24,8 +24,6 @@ mpu9250_unit::mpu9250_unit(std::string devname)
 	}
 	enable_compass(fd, 1);
 	setup_imu(fd, GFS_250_DPS, AFS_2G);
-	cosa = 1;
-	sina = 0;
 }
 
 mpu9250_unit::mpu9250_unit()
@@ -51,8 +49,6 @@ mpu9250_unit::mpu9250_unit()
 	}
 	enable_compass(fd, 1);
 	setup_imu(fd, GFS_250_DPS, AFS_2G);
-	cosa = 1;
-	sina = 0;
 }
 
 mpu9250_unit::~mpu9250_unit()
@@ -111,52 +107,76 @@ bool mpu9250_unit::measure_offset(const int N)
 	offset.my -= adjmy;
 	offset.mz -= adjmz;
 
-	angle = imu.set_start(offset.ax, offset.ay, offset.az,
+	offset.ax -= adjax;
+	offset.ay -= adjay;
+	offset.az -= adjaz;
+
+	initial = imu.set_start(offset.ax, offset.ay, offset.az,
 		      offset.mx, offset.my, offset.mz);
-	cosa = cos(angle);
-	sina = sin(angle);
+	
 	return true;
-}
-
-orient_data_t mpu9250_unit::to_local(orient_data_t tmp)
-{
-	orient_data_t res;
-	res.az = tmp.az;
-	res.mz = tmp.mz;
-	res.wz = tmp.wz;
-
-	res.ax = tmp.ax * cosa + tmp.ay * sina;
-	res.ay = tmp.ay * cosa - tmp.ax * sina;
-	
-	res.mx = tmp.mx * cosa + tmp.my * sina;
-	res.my = tmp.my * cosa - tmp.mx * sina;
-	
-	res.wx = tmp.wx * cosa + tmp.wy * sina;
-	res.wy = tmp.wy * cosa - tmp.wx * sina;
-	return res;
 }
 
 bool mpu9250_unit::measure()
 {
-	orient_data_t tmp;
+	int i;
+	int num = 2;
 	orient_data_t dc;
-	if (read_imu(fd, &dc) < 0)
-		return false;
 
-	tmp.ax = dc.ax;
-	tmp.ay = dc.ay;
-	tmp.az = dc.az;
+	meas.ax = 0;
+	meas.ay = 0;
+	meas.az = 0;
 
-	tmp.wx = dc.wx - offset.wx;
-	tmp.wy = dc.wy - offset.wy;
-	tmp.wz = dc.wz - offset.wz;
+	meas.wx = 0;
+	meas.wy = 0;
+	meas.wz = 0;
 
-	tmp.mx = dc.mx - adjmx;
-	tmp.my = dc.my - adjmy;
-	tmp.mz = dc.mz - adjmz;
+	meas.mx = 0;
+	meas.my = 0;
+	meas.mz = 0;
 
-	meas = to_local(tmp);
-	//meas = tmp;
+	for (i = 0; i < num; i++) {
+		if (read_imu(fd, &dc) < 0)
+			return false;
+
+		meas.ax += dc.ax;
+		meas.ay += dc.ay;
+		meas.az += dc.az;
+
+		meas.wx += dc.wx;
+		meas.wy += dc.wy;
+		meas.wz += dc.wz;
+
+		meas.mx += dc.mx;
+		meas.my += dc.my;
+		meas.mz += dc.mz;
+	}
+	
+	meas.ax /= num;
+	meas.ay /= num;
+	meas.az /= num;
+
+	meas.mx /= num;
+	meas.my /= num;
+	meas.mz /= num;
+
+	meas.wx /= num;
+	meas.wy /= num;
+	meas.wz /= num;
+
+	meas.ax -= adjax;
+	meas.ay -= adjay;
+	meas.az -= adjaz;
+
+	meas.mx -= adjmx;
+	meas.my -= adjmy;
+	meas.mz -= adjmz;
+
+	meas.wx -= offset.wx;
+	meas.wy -= offset.wy;
+	meas.wz -= offset.wz;
+
+	//std::cout << meas.ax << " " << meas.ay << " " << meas.az << "\n";
 	return true;
 }
 
@@ -168,11 +188,15 @@ bool mpu9250_unit::iterate_position(double dt)
 	return true;
 }
 
-void mpu9250_unit::set_errors(float gyro_err, float gyro_drift,
+void mpu9250_unit::set_errors(float E2, float F2,
+			      float aax, float aay, float aaz,
 			      float amx, float amy, float amz)
 {
 	adjmx = amx;
 	adjmy = amy;
 	adjmz = amz;
-	imu.init(gyro_err, gyro_drift);
+	adjax = aax;
+	adjay = aay;
+	adjaz = aaz;
+	imu.init_err(E2, F2);
 }

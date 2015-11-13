@@ -5,7 +5,10 @@
 
 stabilizer::stabilizer(const char* devname, int speed, int gpiocs)
 {
-	engines.open_engines(devname, speed, gpiocs);
+	if (engines.open_engines(devname, speed, gpiocs) <= 0) {
+		printf("Failed to configure spi\n");
+		return;
+	}
 	h1 = h2 = h3 = 1;
 	r = 0;
 	p = 0;
@@ -15,6 +18,7 @@ stabilizer::stabilizer(const char* devname, int speed, int gpiocs)
 void stabilizer::current_rpy(float R, float P, float Y)
 {
 	double pwms[NCH];
+	bool en[NCH] = {false};
 	float dR = r - R;
 	float dP = p - P;
 	float dY = y - Y;
@@ -39,13 +43,12 @@ void stabilizer::current_rpy(float R, float P, float Y)
 	if (f4 < 0)
 		f4 = 0;
 
+	en[0] = en[1] = en[2] = en[3] = true;
 	pwms[0] = f1;
 	pwms[1] = f2;
 	pwms[2] = f3;
 	pwms[3] = f4;
-	//engines.set_pwm(pwms);
-	printf("pwm1 = %f pwm2 = %f pwm3 = %f pwm4 = %f\n",
-	       pwms[0], pwms[1], pwms[2], pwms[3]);
+	engines.set_pwm(pwms, en);
 }
 
 void stabilizer::set_parameters(float Power, float R, float P, float Y)

@@ -5,23 +5,29 @@
 
 class mpu9250_unit {
 	int fd;
-	float angle, cosa, sina;
-	madgwick imu;
-	orient_data_t offset;
+	
+	kalman imu;
+	
 	float adjmx, adjmy, adjmz;
-	orient_data_t to_local(orient_data_t tmp);
-public:
+	float adjax, adjay, adjaz;
 	orient_data_t meas;
 	bool measure();
-
+public:
+	orient_data_t offset;
+	Quaternionf initial;
 	mpu9250_unit();
 	mpu9250_unit(std::string devname);
 	~mpu9250_unit();
 	bool measure_offset(const int N);
-	void set_errors(float gyro_err, float gyro_drift,
+	/*void set_errors(float gyro_err, float gyro_drift,
+			float aax, float aay, float aaz,
+			float amx, float amy, float amz);*/
+	void set_errors(float E2, float F2,
+			float aax, float aay, float aaz,
 			float amx, float amy, float amz);
+	
 	bool iterate_position(double dt);
-	const Quaterniond orientation() {return imu.orientation();}
+	const Quaternionf orientation() {return imu.orientation();}
 };
 
 #endif

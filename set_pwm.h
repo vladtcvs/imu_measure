@@ -18,7 +18,8 @@ public:
 	~set_engines();
 	int open_engines(const char *device, int speed, int gpio_cs);
 	int close_engines();
-	int set_pwm(int id, double val);
+	int set_pwm(int id, double val, bool enable);
+	int set_pwm(double vals[NCH], bool enable[NCH]);
 	int set_pwm(double vals[NCH]);
 };
 

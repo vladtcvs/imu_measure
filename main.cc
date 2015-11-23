@@ -10,11 +10,12 @@
 #include <set_pwm.h>
 #include <mpu9250_unit.h>
 #include <stabilization.h>
+#include <cfg.h>
 
 static struct timeval tv1,tv2,dtv;
 static struct timezone tz;
+stabilizer *stab;
 
-static int fd;
 
 Vector3f QuaternionToRPY(const Quaternionf& q)
 {
@@ -33,7 +34,10 @@ Vector3f QuaternionToRPY(const Quaternionf& q)
 static void signal_hdl(int signum)
 {
 	if (signum == SIGINT || signum == SIGTERM) {
-		close_imu(fd);
+		if (stab) {
+			stab->turn_off();
+			delete stab;
+		}
 		exit(0);
 	}
 }
@@ -108,39 +112,42 @@ int main(int argc, char **argv)
 	int i, j;
 	double t, tp;
 	signal(SIGINT, signal_hdl);
+	control_config cfg;
 
-	//stabilizer stab("/dev/spidev0.0", 10000, 22);
+	if (read_parse_config("control.cfg", &cfg) == false) {
+		return 0;
+	}
+	stab = new stabilizer("/dev/spidev0.0", 10000, 22);
+	stab->set_parameters(1, 0, 0, 0);
+	stab->set_hardness(cfg.rigidity_roll, cfg.rigidity_pitch, cfg.rigidity_yaw);
+
 	mpu9250_unit imu("/dev/i2c-2");
-	//stab.set_parameters(1, 0, 0, 0);
-	//stab.set_hardness(1, 1, 0.01);
-	imu.set_errors(100, 0.001, -1.3, 0.288, -0.96, -89, 54, 254);
-	imu.measure_offset(100);
-	Quaternionf grav(0, imu.offset.ax, imu.offset.ay, imu.offset.az);
-	printf("Gravity: %f %f %f\n", grav.x(), grav.y(), grav.z());
-	
-	Quaternionf flux(0, imu.offset.mx, imu.offset.my, imu.offset.mz);
-	printf("Flux: %f %f %f\n", flux.x(), flux.y(), flux.z());
-	Quaternionf initial = imu.initial;
-	grav = initial*grav*initial.inverse();
-	flux = initial*flux*initial.inverse();
-	printf("Gravity: %f %f %f\n", grav.x(), grav.y(), grav.z());
-	printf("Flux: %f %f %f\n", flux.x(), flux.y(), flux.z());
-	
-	Quaternionf pos = find_orientation(imu.offset.ax, imu.offset.ay, imu.offset.az, imu.offset.mx, imu.offset.my, imu.offset.mz);
-	Vector3f rpy = QuaternionToRPY(pos);
-	printf("RPY = %lf %lf %lf\n", rpy(0)*180/M_PI, rpy(1)*180/M_PI, rpy(2)*180/M_PI);
+	imu.set_errors(cfg.E2, cfg.F2, Vector3f(cfg.G2x, cfg.G2y, cfg.G2z),
+			Vector3f(cfg.N2x, cfg.N2y, cfg.N2z),
+			cfg.adjax, cfg.adjay, cfg.adjaz,
+			cfg.adjmx, cfg.adjmy, cfg.adjmz);
+
+	imu.measure_offset(cfg.measures_start);
+
+	Vector3f rpy = QuaternionToRPY(imu.orientation());
+	printf("RPY = %lf %lf %lf\n",
+	       rpy(0)*180/M_PI, rpy(1)*180/M_PI, rpy(2)*180/M_PI);
 
 	time_start();
 	tp = time_stop()/1000;
 	while (1) {
 		orient_data_t orient;
+		Vector3f M;
+		Vector3f force;
+		M.setZero();
+		force.setZero();
 		t = time_stop()/1000.0;
 		double dt = t - tp;
-		if (imu.iterate_position(dt)) {
+		if (imu.iterate_position(dt, M, force)) {
 			const Quaternionf rot = imu.orientation();
 			Vector3f rpy = QuaternionToRPY(rot);
-		//	stab.current_rpy(rpy(0), rpy(1), rpy(2));
-			printf("RPY = %lf %lf %lf. t = %lf\n", rpy(0)*180/M_PI, rpy(1)*180/M_PI, rpy(2)*180/M_PI, t);
+			stab->current_rpy(rpy(0), rpy(1), rpy(2));
+			printf("RPY: %f %f %f\n", rpy(0)*180/M_PI, rpy(1)*180/M_PI, rpy(2)*180/M_PI);
 		}
 		tp = t;
 	}

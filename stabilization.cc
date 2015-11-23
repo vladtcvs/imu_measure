@@ -15,13 +15,23 @@ stabilizer::stabilizer(const char* devname, int speed, int gpiocs)
 	y = 0;
 }
 
+void stabilizer::turn_off()
+{
+	double pwms[NCH] = {0};
+	bool en[NCH] = {false};
+
+	en[0] = en[1] = en[2] = en[3] = true;
+	engines.set_pwm(pwms, en);
+}
+
 void stabilizer::current_rpy(float R, float P, float Y)
 {
 	double pwms[NCH];
 	bool en[NCH] = {false};
-	float dR = r - R;
-	float dP = p - P;
-	float dY = y - Y;
+	 // difference between target angle and current
+	float dR = -(r - R);
+	float dP = -(p - P);
+	float dY = -(y - Y);
 
 	if (dY > M_PI)
 		dY -= 2*M_PI;
@@ -29,10 +39,10 @@ void stabilizer::current_rpy(float R, float P, float Y)
 		dY += 2*M_PI;
 
 	float f1, f2, f3, f4;
-	f1 = 0.25 * (h1 * dR - h2 * dP + h3 * dY + power);
-	f2 = 0.25 * (h1 * dR + h2 * dP - h3 * dY + power);
-	f3 = 0.25 * (-h1 * dR + h2 * dP + h3 * dY + power);
-	f4 = 0.25 * (-h1 * dR - h2 * dP - h3 * dY + power);
+	f1 = 0.25 * (h1 * dR - h2 * dP - h3 * dY + power);
+	f2 = 0.25 * (-h1 * dR - h2 * dP + h3 * dY + power);
+	f3 = 0.25 * (-h1 * dR + h2 * dP - h3 * dY + power);
+	f4 = 0.25 * (h1 * dR + h2 * dP + h3 * dY + power);
 
 	if (f1 < 0)
 		f1 = 0;

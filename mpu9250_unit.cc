@@ -111,9 +111,12 @@ bool mpu9250_unit::measure_offset(const int N)
 	offset.ay -= adjay;
 	offset.az -= adjaz;
 
-	initial = imu.set_start(offset.ax, offset.ay, offset.az,
+	Quaternionf init_q = find_orientation(offset.ax, offset.ay, offset.az,
 		      offset.mx, offset.my, offset.mz);
-	
+	Vector3f init_om;
+	init_om.setZero();
+
+	imu.init_pos(init_om, init_q);
 	return true;
 }
 
@@ -180,15 +183,25 @@ bool mpu9250_unit::measure()
 	return true;
 }
 
-bool mpu9250_unit::iterate_position(double dt)
+bool mpu9250_unit::iterate_position(double dt, Vector3f M, Vector3f F)
 {
 	if (measure() == false)
 		return false;
-	imu.iterate(dt, meas);
+	measurement meas_kalman;
+	meas_kalman.a(0) = meas.ax;
+	meas_kalman.a(1) = meas.ay;
+	meas_kalman.a(2) = meas.az;
+	meas_kalman.m(0) = meas.mx;
+	meas_kalman.m(1) = meas.my;
+	meas_kalman.m(2) = meas.mz;
+	meas_kalman.w(0) = meas.wx;
+	meas_kalman.w(1) = meas.wy;
+	meas_kalman.w(2) = meas.wz;
+	imu.iterate(dt, M, F, meas_kalman);
 	return true;
 }
 
-void mpu9250_unit::set_errors(float E2, float F2,
+void mpu9250_unit::set_errors(float E2, float F2, Vector3f G2, Vector3f N2,
 			      float aax, float aay, float aaz,
 			      float amx, float amy, float amz)
 {
@@ -198,5 +211,5 @@ void mpu9250_unit::set_errors(float E2, float F2,
 	adjax = aax;
 	adjay = aay;
 	adjaz = aaz;
-	imu.init_err(E2, F2);
+	imu.init_err(E2, F2, G2, N2);
 }

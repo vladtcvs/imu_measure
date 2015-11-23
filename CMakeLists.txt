@@ -14,11 +14,12 @@ set (CMAKE_C_FLAGS "-g")
 
 include_directories(${PROJECT_SOURCE_DIR} ${CMAKE_SYSTEM_INCLUDE_PATH}/eigen3)
 
+add_library(kalman STATIC  kalman.cc)
 add_library(engines_set STATIC set_pwm.cc)
 add_library(mpu9250 STATIC mpu_9250.c)
 
-add_executable(control main.cc mpu9250_unit.cc integrate.cc stabilization.cc)
+add_executable(control main.cc mpu9250_unit.cc stabilization.cc cfg.cc)
 add_executable(set_bp set_bp.c)
 
-target_link_libraries(control mpu9250 engines_set)
+target_link_libraries(control mpu9250 engines_set kalman)
 target_link_libraries(set_bp mpu9250)

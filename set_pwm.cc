@@ -85,7 +85,7 @@ int set_engines::open_engines(const char *device, int nspeed, int ngpio_cs)
 		double tpwms[NCH];
 		bool enable[NCH];
 		for (int i = 0; i < NCH; i++) {
-			tpwms[i] = 1;
+			tpwms[i] = 0;
 			enable[i] = false;
 		}
 		enable[0] = enable[1] = enable[2] = enable[3] = true;
@@ -131,10 +131,10 @@ int set_engines::transfer(uint8_t *tx, uint8_t *rx, int num)
 	int gpio_fd;
 	int i;
 
-	printf("transfer: ");
+	/*printf("transfer: ");
 	for (i = 0; i < num; i++)
 		printf("%i ", tx[i]);
-	printf("\n");
+	printf("\n");*/
 
 	snprintf(buf, 200, "/sys/class/gpio/gpio%d/value", gpio_cs);
 	buf[200] = 0;

@@ -153,13 +153,13 @@ bool read_parse_config(const std::string& file, control_config *cfg)
 		cfg->rigidity_yaw = vec[2];
 		vec = read_cfg_vector_float(config["G2"]);
 		if (vec.size() != 3)
-			throw "rigidity vector has wrong size\n";
+			throw "G2 vector has wrong size\n";
 		cfg->G2x = vec[0];
 		cfg->G2y = vec[1];
 		cfg->G2z = vec[2];
 		vec = read_cfg_vector_float(config["N2"]);
 		if (vec.size() != 3)
-			throw "rigidity vector has wrong size\n";
+			throw "N2 vector has wrong size\n";
 		cfg->N2x = vec[0];
 		cfg->N2y = vec[1];
 		cfg->N2z = vec[2];

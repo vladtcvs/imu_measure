@@ -16,21 +16,6 @@ static struct timeval tv1,tv2,dtv;
 static struct timezone tz;
 stabilizer *stab;
 
-
-Vector3f QuaternionToRPY(const Quaternionf& q)
-{
-	float q0, q1, q2, q3;
-	q1 = q.x();
-	q2 = q.y();
-	q3 = q.z();
-	q0 = q.w();
-	float roll  = atan2(2*q0*q1 + 2*q2*q3, 1 - 2*q1*q1 - 2*q2*q2);
-	float pitch = asin(2*q0*q2 - 2*q1*q3);
-	float yaw   =  atan2(2*q0*q3 + 2*q1*q2, 1 - 2*q2*q2 - 2*q3*q3);
-	
-	return Vector3f(roll, pitch, yaw);
-}
-
 static void signal_hdl(int signum)
 {
 	if (signum == SIGINT || signum == SIGTERM) {
@@ -129,10 +114,7 @@ int main(int argc, char **argv)
 
 	imu.measure_offset(cfg.measures_start);
 
-	Vector3f rpy = QuaternionToRPY(imu.orientation());
-	printf("RPY = %lf %lf %lf\n",
-	       rpy(0)*180/M_PI, rpy(1)*180/M_PI, rpy(2)*180/M_PI);
-
+	print_state("Init", Vector3f(0,0,0), imu.orientation());
 	time_start();
 	tp = time_stop()/1000;
 	while (1) {
@@ -145,9 +127,7 @@ int main(int argc, char **argv)
 		double dt = t - tp;
 		if (imu.iterate_position(dt, M, force)) {
 			const Quaternionf rot = imu.orientation();
-			Vector3f rpy = QuaternionToRPY(rot);
-			stab->current_rpy(rpy(0), rpy(1), rpy(2));
-			printf("RPY: %f %f %f\n", rpy(0)*180/M_PI, rpy(1)*180/M_PI, rpy(2)*180/M_PI);
+			
 		}
 		tp = t;
 	}
